@@ -19,7 +19,7 @@ class UserAPIViewSet(ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        MyUser.objects.create_user(**serializer.data)
+        self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
@@ -27,7 +27,6 @@ class UserAPIViewSet(ModelViewSet):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         data = request.data.copy()
-        data["first_name"] = "Jacques"
         serializer = self.get_serializer(instance, data=data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
@@ -41,7 +40,6 @@ class UserAPIViewSet(ModelViewSet):
             serializer.save(password=serializer.validated_data["password"])
         else:
             serializer.save()
-
 
 
 class ClientAPIViewSet(ModelViewSet):
