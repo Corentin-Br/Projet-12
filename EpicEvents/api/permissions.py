@@ -18,6 +18,7 @@ class IsContactOrSupportOrReadOnly(permissions.BasePermission):
                                                                  Q(support=request.user)
                                                                  ).exists()
 
+
 class IsManager(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.role == "gestion"
