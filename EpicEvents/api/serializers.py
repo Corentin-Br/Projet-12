@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from ..accounts.models import MyUser
-from ..clients.models import Contract, Client
-from ..events.models import Event
+from accounts.models import MyUser
+from clients.models import Contract, Client
+from events.models import Event
 
 
 class MyUserSerializer(serializers.ModelSerializer):
@@ -15,6 +15,13 @@ class MyUserSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return MyUser.objects.create_user(**validated_data)
+
+    def save(self, **kwargs):
+        self.instance = super().save(**kwargs)
+        if "password" in kwargs:
+            self.instance.set_password(kwargs["password"])
+            self.instance.save()
+        return self.instance
 
 
 class ClientSerializer(serializers.ModelSerializer):
