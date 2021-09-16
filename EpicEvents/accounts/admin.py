@@ -10,21 +10,21 @@ from django.core.exceptions import ValidationError
 from django.core.exceptions import PermissionDenied
 
 from .models import MyUser
-from api.urls import user_change
+from api.urls import user_change, user_create, user_list
 
 
 class UserCreationForm(forms.ModelForm):
     """A form for creating new users. Includes all the required
     fields, plus a repeated password."""
-    password1 = forms.CharField(label='Password', widget=forms.PasswordInput)
+    password = forms.CharField(label='Password', widget=forms.PasswordInput)
     password2 = forms.CharField(label='Password confirmation', widget=forms.PasswordInput)
 
     class Meta:
         model = MyUser
-        fields = ('email', 'first_name', 'last_name', 'role', 'password1', 'password2')
+        fields = ('email', 'first_name', 'last_name', 'role', 'password', 'password2')
 
     def clean_password2(self):
-        password1 = self.cleaned_data.get("password1")
+        password1 = self.cleaned_data.get("password")
         password2 = self.cleaned_data.get("password2")
         if password1 and password2 and password1 != password2:
             raise ValidationError("Passwords don't match")
@@ -32,10 +32,9 @@ class UserCreationForm(forms.ModelForm):
 
     def save(self, commit=True):
         data = self.cleaned_data.copy()
-        del(data["password1"])
         del(data["password2"])
         super().save(commit=False)
-        user = MyUser.objects.create_user(password=self.cleaned_data["password1"], **data)
+        user = MyUser.objects.create_user(**data)
         if commit:
             user.save()
         return user
@@ -66,12 +65,27 @@ class UserAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'first_name', 'role', 'last_name', 'password1', 'password2'),
+            'fields': ('email', 'first_name', 'role', 'last_name', 'password', 'password2'),
         }),
     )
     search_fields = ('email',)
     ordering = ('email',)
     filter_horizontal = ()
+
+    def add_view(self, request, form_url='', extra_context=None):
+        if request.method == 'POST':
+            if request.POST["password"] == request.POST["password2"]:
+                response = user_create(request)
+                if response.status_code == 201:
+                    return self.response_add(request, self.get_object(request, self.model.objects.last()))
+                else:
+                    context, add, obj = get_context(self, request, None, extra_context, status_code=response.status_code)
+                    return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
+            else:
+                context, add, obj = get_context(self, request, None, extra_context, status_code=200)
+                return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
+        else:
+            return super().add_view(request, form_url, extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         if request.method == 'POST':
@@ -79,13 +93,28 @@ class UserAdmin(BaseUserAdmin):
             if response.status_code == 200:
                 return self.response_change(request, self.get_object(request, object_id))
             else:
-                context, add, obj = get_context(self, request, object_id, extra_context, api_response=response)
+                context, add, obj = get_context(self, request, object_id, extra_context, status_code=response.status_code)
                 return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
         else:
             return super().change_view(request, object_id, form_url, extra_context)
 
+    def get_queryset(self, request):
+        response = user_list(request)
+        if response.status_code == 200:
+            qs = self.model._default_manager.get_queryset()
+            qs.filter(email__in=[user["email"] for user in response.data])
+            ordering = self.get_ordering(request)
+            if ordering:
+                qs = qs.order_by(*ordering)
+        elif response.status_code == 403:
+            raise PermissionDenied
+        else:
+            qs = self.model.objects.none()
+        return qs
 
-def get_context(admin_model, request, object_id, extra_context, api_response):
+
+
+def get_context(admin_model, request, object_id, extra_context, status_code):
     """Create the context required to render the admin template.
 
     It is needed because django's default change_view will perform change on the database, while we want the API to be
@@ -101,16 +130,15 @@ def get_context(admin_model, request, object_id, extra_context, api_response):
     add = object_id is None
 
     if add:
-        if api_response.status_code == 403:
+        if status_code == 403:
             raise PermissionDenied
         obj = None
     else:
         obj = admin_model.get_object(request, unquote(object_id), to_field)
-        if api_response.status_code == 403:
+        if status_code == 403:
             raise PermissionDenied
-
-    if obj is None:
-        return admin_model._get_obj_does_not_exist_redirect(request, opts, object_id)
+        if obj is None:
+            return admin_model._get_obj_does_not_exist_redirect(request, opts, object_id)
     fieldsets = admin_model.get_fieldsets(request, obj)
     ModelForm = admin_model.get_form(
         request, obj, change=not add, fields=flatten_fieldsets(fieldsets)
