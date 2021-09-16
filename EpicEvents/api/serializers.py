@@ -8,6 +8,7 @@ class MyUserSerializer(serializers.ModelSerializer):
     events = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
     clients = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
     contracts = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+    password = serializers.CharField(write_only=True)
 
     class Meta:
         model = MyUser
