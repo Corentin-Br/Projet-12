@@ -1,3 +1,5 @@
+import logging
+
 from django import forms
 from django.contrib import admin
 from django.contrib.admin import helpers
@@ -11,6 +13,12 @@ from django.core.exceptions import PermissionDenied
 
 from .models import MyUser
 from api.urls import user_change, user_create, user_list, user_delete
+
+logger = logging.getLogger(__name__)
+file_handler = logging.FileHandler('debug2.log')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
 
 
 class UserCreationForm(forms.ModelForm):
@@ -79,13 +87,26 @@ class UserAdmin(BaseUserAdmin):
                 if response.status_code == 201:
                     return self.response_add(request, self.model.objects.last())
                 else:
+                    if response.status_code != 403:
+                        logger.warning(f"Failed to create user with \n"
+                                       f"email: {request.POST['email']} \n"
+                                       f"first_name: {request.POST['first_name']}\n"
+                                       f"last_name: {request.POST['last_name']}\n"
+                                       f"role: {request.POST['role']}")
+                    else:
+                        logger.warning(f"Unauthorized user {request.user} failed to create an user")
                     context, add, obj = get_context(self, request, None, extra_context, status_code=response.status_code)
                     return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
             else:
+                logger.warning(f"Password mismatch: failed to create user")
                 context, add, obj = get_context(self, request, None, extra_context, status_code=200)
                 return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
         else:
-            return super().add_view(request, form_url, extra_context)
+            if request.user.role == "gestion":
+                return super().add_view(request, form_url, extra_context)
+            else:
+                logger.warning(f"Unauthorized user {request.user} tried to acces user creation.")
+                raise PermissionDenied
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         if request.method == 'POST':
@@ -93,6 +114,14 @@ class UserAdmin(BaseUserAdmin):
             if response.status_code == 200:
                 return self.response_change(request, self.get_object(request, object_id))
             else:
+                if response.status_code != 403:
+                    logger.warning(f"Failed to edit user with \n"
+                                   f"email: {request.POST['email']} \n"
+                                   f"first_name: {request.POST['first_name']}\n"
+                                   f"last_name: {request.POST['last_name']}\n"
+                                   f"role: {request.POST['role']}")
+                else:
+                    logger.warning(f"Unauthorized user {request.user} failed to create an user")
                 context, add, obj = get_context(self, request, object_id, extra_context, status_code=response.status_code)
                 return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
         else:
@@ -107,20 +136,26 @@ class UserAdmin(BaseUserAdmin):
             if ordering:
                 qs = qs.order_by(*ordering)
         elif response.status_code == 403:
+            logger.warning(f"Unauthorized user {request.user} failed to obtain the list of users.")
             raise PermissionDenied
         else:
+            logger.warning(f"An empty list of users was sent to {request.user}.\n"
+                           f"The API sent : {response.data}")
             qs = self.model.objects.none()
         return qs
 
     def delete_model(self, request, obj):
-        user_delete(request, pk=obj.pk)
+        response = user_delete(request, pk=obj.pk)
+        if response.status_code != 204:
+            logger.warning(f"{request.user} failed to delete {obj}.\n"
+                           f"The API sent: {response.data}")
 
     def delete_queryset(self, request, queryset):
         for user in queryset:
-            user_delete(request, pk=user.pk)
-
-
-
+            response = user_delete(request, pk=user.pk)
+            if response.status_code != 204:
+                logger.warning(f"{request.user} failed to delete {user}.\n"
+                               f"The API sent: {response.data}")
 
 
 def get_context(admin_model, request, object_id, extra_context, status_code):
