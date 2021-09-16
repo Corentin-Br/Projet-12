@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.exceptions import PermissionDenied
 
 from .models import MyUser
-from api.urls import user_change, user_create, user_list
+from api.urls import user_change, user_create, user_list, user_delete
 
 
 class UserCreationForm(forms.ModelForm):
@@ -60,7 +60,7 @@ class UserAdmin(BaseUserAdmin):
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
         ('Personal informations', {'fields': ('first_name', 'last_name')}),
-        ('Permissions', {'fields': ('role', 'is_admin',)}),
+        ('Permissions', {'fields': ('role',)}),
     )
     add_fieldsets = (
         (None, {
@@ -77,7 +77,7 @@ class UserAdmin(BaseUserAdmin):
             if request.POST["password"] == request.POST["password2"]:
                 response = user_create(request)
                 if response.status_code == 201:
-                    return self.response_add(request, self.get_object(request, self.model.objects.last()))
+                    return self.response_add(request, self.model.objects.last())
                 else:
                     context, add, obj = get_context(self, request, None, extra_context, status_code=response.status_code)
                     return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
@@ -100,7 +100,7 @@ class UserAdmin(BaseUserAdmin):
 
     def get_queryset(self, request):
         response = user_list(request)
-        if response.status_code == 200:
+        if response.status_code in (200, 204):
             qs = self.model._default_manager.get_queryset()
             qs.filter(email__in=[user["email"] for user in response.data])
             ordering = self.get_ordering(request)
@@ -111,6 +111,15 @@ class UserAdmin(BaseUserAdmin):
         else:
             qs = self.model.objects.none()
         return qs
+
+    def delete_model(self, request, obj):
+        user_delete(request, pk=obj.pk)
+
+    def delete_queryset(self, request, queryset):
+        for user in queryset:
+            user_delete(request, pk=user.pk)
+
+
 
 
 
