@@ -73,16 +73,15 @@ class MyUser(AbstractBaseUser):
         "Does the user have a specific permission?"
         # Simplest possible answer: Yes, always
         return True
+
     def has_module_perms(self, app_label):
         """Does the user have permissions to view the app `app_label`?"""
         if app_label in ("api", "accounts"):
             return self.role == "gestion"
-        elif app_label == "clients":
-            return self.role in ("gestion", "sales")
-        elif app_label == "events":
-            return self.role in ("gestion", "support")
+        elif app_label in ("clients", "events"):
+            return self.role in ("gestion", "sales", "support")
 
     @property
     def is_staff(self):
         """Is the user a member of staff?"""
-        return self.role == "gestion"
+        return self.role in ("gestion", "sales", "support")
