@@ -35,7 +35,7 @@ user_delete = UserAPIViewSet.as_view(
 )
 
 urlpatterns = [
-    path('users/<int:pk>/', user_change, name="user_change"),
+    path('users/<int:pk>/edit', user_change, name="user_change"),
     path('users/create/', user_create, name="user_create"),
     path('users/list/', user_list, name="user_list"),
     # path('users/<int:pk>/', user_find, name="user_find"),
