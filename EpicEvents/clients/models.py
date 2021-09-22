@@ -16,11 +16,11 @@ class Client(models.Model):
         unique=True,
     )
     phone_number = PhoneNumberField()
-    mobile_number = PhoneNumberField
+    mobile_number = PhoneNumberField(null=True)
     company_name = models.CharField(
         verbose_name="nom d'entreprise",
         max_length=250)
-    date_created = models.DateTimeField(auto_now=True)
+    date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
     sales_contact = models.ForeignKey('accounts.MyUser', on_delete=models.CASCADE, limit_choices_to={'role': 'sales'}, blank=True,
                                       null=True, related_name="clients")
@@ -29,7 +29,7 @@ class Client(models.Model):
 class Contract(models.Model):
     sales_contact = models.ForeignKey('accounts.MyUser', on_delete=models.CASCADE, limit_choices_to={'role': 'sales'}, related_name="contracts")
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="contracts")
-    date_created = models.DateTimeField(auto_now=True)
+    date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
     status = models.BooleanField()
     amount = models.FloatField()
