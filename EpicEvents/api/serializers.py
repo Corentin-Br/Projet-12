@@ -1,3 +1,4 @@
+from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from accounts.models import MyUser
 from clients.models import Contract, Client
@@ -12,16 +13,15 @@ class MyUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MyUser
-        fields = ['email', 'first_name', 'last_name', 'password', 'role', 'events', 'clients', 'contracts']
+        fields = ['id', 'email', 'first_name', 'last_name', 'password', 'role', 'events', 'clients', 'contracts']
 
     def create(self, validated_data):
         return MyUser.objects.create_user(**validated_data)
 
     def save(self, **kwargs):
-        self.instance = super().save(**kwargs)
         if "password" in kwargs:
-            self.instance.set_password(kwargs["password"])
-            self.instance.save()
+            kwargs["password"] = make_password(kwargs["password"])
+        self.instance = super().save(**kwargs)
         return self.instance
 
 
@@ -31,17 +31,17 @@ class ClientSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Client
-        fields = ['first_name', 'last_name', 'email', 'phone_number', 'mobile_number', 'company_name',
+        fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'mobile_number', 'company_name',
                   'date_created', 'date_updated', 'sales_contact']
 
 
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
-        fields = ['client', 'date_created', 'date_updated', 'support', 'contract', 'attendees', 'date', 'notes']
+        fields = ['id', 'client', 'date_created', 'date_updated', 'support', 'contract', 'attendees', 'date', 'notes']
 
 
 class ContractSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contract
-        fields = ['sales_contact', 'client', 'date_created', 'date_updated', 'status', 'amount', 'payment_due']
+        fields = ['id', 'sales_contact', 'client', 'date_created', 'date_updated', 'status', 'amount', 'payment_due']
