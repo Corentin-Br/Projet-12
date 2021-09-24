@@ -14,3 +14,6 @@ class Event(models.Model):
     @property
     def status(self):
         return self.contract.status
+
+    def __str__(self):
+        return f"{self.client} {self.date.date()}"

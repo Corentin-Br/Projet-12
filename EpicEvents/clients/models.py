@@ -25,6 +25,9 @@ class Client(models.Model):
     sales_contact = models.ForeignKey('accounts.MyUser', on_delete=models.CASCADE, limit_choices_to={'role': 'sales'}, blank=True,
                                       null=True, related_name="clients")
 
+    def __str__(self):
+        return self.company_name
+
 
 class Contract(models.Model):
     sales_contact = models.ForeignKey('accounts.MyUser', on_delete=models.CASCADE, limit_choices_to={'role': 'sales'}, related_name="contracts")
@@ -34,3 +37,6 @@ class Contract(models.Model):
     status = models.BooleanField()
     amount = models.FloatField()
     payment_due = models.DateTimeField()
+
+    def __str__(self):
+        return f"{self.client} with {self.sales_contact} {self.date_created.date()}"
