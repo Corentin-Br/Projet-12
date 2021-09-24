@@ -4,19 +4,19 @@ from rest_framework.generics import get_object_or_404
 
 
 class IsContactOrReadOnly(permissions.BasePermission):
-    def has_permission(self, request, view):
+    def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
-        return view.queryset.filter(pk=view.kwargs["pk"], sales_contact=request.user).exists()
+        return view.queryset.filter(pk=obj.id, sales_contact=request.user).exists() or request.user.role == "gestion"
 
 
 class IsContactOrSupportOrReadOnly(permissions.BasePermission):
-    def has_permission(self, request, view):
+    def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
-        return view.queryset.filter(pk=view.kwargs["pk"]).filter(Q(contract__sales_contact=request.user) |
+        return view.queryset.filter(pk=obj.id).filter(Q(contract__sales_contact=request.user) |
                                                                  Q(support=request.user)
-                                                                 ).exists()
+                                                                 ).exists() or request.user.role == "gestion"
 
 
 class IsManager(permissions.BasePermission):
