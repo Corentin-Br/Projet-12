@@ -4,7 +4,7 @@ from django import forms
 from django.contrib import admin
 from django.contrib.admin import helpers
 from django.contrib.admin.exceptions import DisallowedModelAdminToField
-from django.contrib.admin.options import TO_FIELD_VAR, IS_POPUP_VAR
+from django.contrib.admin.options import TO_FIELD_VAR, IS_POPUP_VAR, ModelAdmin
 from django.contrib.admin.utils import unquote, flatten_fieldsets
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
@@ -12,7 +12,13 @@ from django.core.exceptions import ValidationError
 from django.core.exceptions import PermissionDenied
 
 from .models import MyUser
-from api.urls import user_change, user_create, user_list, user_delete
+from api.urls import user_change, user_create, user_list, user_delete, event_create, event_change, event_list, event_delete, client_create, client_change, client_list, \
+    client_delete, contract_create, contract_change, contract_list, contract_delete
+
+from events.models import Event
+
+from clients.models import Contract, Client
+
 
 logger = logging.getLogger(__name__)
 file_handler = logging.FileHandler('debug2.log')
@@ -63,19 +69,9 @@ class UserChangeForm(forms.ModelForm):
 class UserAdmin(BaseUserAdmin):
     form = UserChangeForm
     add_form = UserCreationForm
-    list_display = ('email', 'first_name', 'last_name', 'is_admin')
+    list_display = ('email', 'first_name', 'last_name', 'role', 'is_admin')
+    fieldsets = ((None, {'fields': ('email', 'first_name', 'last_name', 'role')}),)
     list_filter = ('is_admin',)
-    fieldsets = (
-        (None, {'fields': ('email', 'password')}),
-        ('Personal informations', {'fields': ('first_name', 'last_name')}),
-        ('Permissions', {'fields': ('role',)}),
-    )
-    add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': ('email', 'first_name', 'role', 'last_name', 'password', 'password2'),
-        }),
-    )
     search_fields = ('email',)
     ordering = ('email',)
     filter_horizontal = ()
@@ -115,13 +111,13 @@ class UserAdmin(BaseUserAdmin):
                 return self.response_change(request, self.get_object(request, object_id))
             else:
                 if response.status_code != 403:
-                    logger.warning(f"Failed to edit user with \n"
+                    logger.warning(f"Failed to edit user {object_id} with \n"
                                    f"email: {request.POST['email']} \n"
                                    f"first_name: {request.POST['first_name']}\n"
                                    f"last_name: {request.POST['last_name']}\n"
                                    f"role: {request.POST['role']}")
                 else:
-                    logger.warning(f"Unauthorized user {request.user} failed to create an user")
+                    logger.warning(f"Unauthorized user {request.user} failed to edit an user")
                 context, add, obj = get_context(self, request, object_id, extra_context, status_code=response.status_code)
                 return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
         else:
@@ -131,7 +127,7 @@ class UserAdmin(BaseUserAdmin):
         response = user_list(request)
         if response.status_code in (200, 204):
             qs = self.model._default_manager.get_queryset()
-            qs.filter(email__in=[user["email"] for user in response.data])
+            qs.filter(id__in=[user["id"] for user in response.data])
             ordering = self.get_ordering(request)
             if ordering:
                 qs = qs.order_by(*ordering)
@@ -146,14 +142,326 @@ class UserAdmin(BaseUserAdmin):
 
     def delete_model(self, request, obj):
         response = user_delete(request, pk=obj.pk)
-        if response.status_code != 204:
+        if response.status_code == 403:
+            logger.warning(f"Unauthorized user {request.user} failed to delete {obj}")
+            raise PermissionDenied
+        elif response.status_code != 204:
             logger.warning(f"{request.user} failed to delete {obj}.\n"
                            f"The API sent: {response.data}")
 
     def delete_queryset(self, request, queryset):
         for user in queryset:
             response = user_delete(request, pk=user.pk)
-            if response.status_code != 204:
+            if response.status_code == 403:
+                logger.warning(f"Unauthorized user {request.user} failed to delete {user}")
+                raise PermissionDenied
+            elif response.status_code != 204:
+                logger.warning(f"{request.user} failed to delete {user}.\n"
+                               f"The API sent: {response.data}")
+
+
+class EventCreationForm(forms.ModelForm):
+    """A form for creating new events."""
+
+    class Meta:
+        model = Event
+        fields = ('client', 'support', 'contract', 'attendees', 'date', 'notes')
+
+
+class EventChangeForm(forms.ModelForm):
+    """A form for updating events."""
+
+    class Meta:
+        model = Event
+        fields = ('client', 'support', 'contract', 'attendees', 'date', 'notes')
+
+
+class ClientCreationForm(forms.ModelForm):
+    """A form for creating new events."""
+
+    class Meta:
+        model = Client
+        fields = ('first_name', 'last_name', 'email', 'phone_number', 'mobile_number', 'company_name', 'sales_contact')
+
+
+class ClientChangeForm(forms.ModelForm):
+    """A form for updating events."""
+
+    class Meta:
+        model = Client
+        fields = ('first_name', 'last_name', 'email', 'phone_number', 'mobile_number', 'company_name', 'sales_contact')
+
+
+class ContractCreationForm(forms.ModelForm):
+    """A form for creating new events."""
+
+    class Meta:
+        model = Contract
+        fields = ('sales_contact', 'client', 'status', 'amount', 'payment_due')
+
+
+class ContractChangeForm(forms.ModelForm):
+    """A form for updating events."""
+
+    class Meta:
+        model = Contract
+        fields = ('sales_contact', 'client', 'status', 'amount', 'payment_due')
+
+
+@admin.register(Event)
+class EventAdmin(ModelAdmin):
+    form = EventChangeForm
+    add_form = EventCreationForm
+    list_display = ('client', 'date_created', 'date_updated', 'support', 'contract', 'attendees', 'date', 'notes', 'status')
+    search_fields = ('date_created',)
+    ordering = ('date_created',)
+    filter_horizontal = ()
+
+    def add_view(self, request, form_url='', extra_context=None):
+        if request.method == 'POST':
+            response = event_create(request)
+            if response.status_code == 201:
+                return self.response_add(request, self.model.objects.last())
+            else:
+                if response.status_code != 403:
+                    logger.warning(f"Failed to create event with \n"
+                                   f"client: {request.POST['client']} \n"
+                                   f"contract: {request.POST['contract']}.")
+
+                else:
+                    logger.warning(f"Unauthorized user {request.user} failed to create an event")
+                context, add, obj = get_context(self, request, None, extra_context, status_code=response.status_code)
+                return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
+        else:
+            if request.user.role in ("gestion", "sales"):
+                return super().add_view(request, form_url, extra_context)
+            else:
+                logger.warning(f"Unauthorized user {request.user} tried to acces event creation.")
+                raise PermissionDenied
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        if request.method == 'POST':
+            response = event_change(request, pk=object_id)
+            if response.status_code == 200:
+                return self.response_change(request, self.get_object(request, object_id))
+            else:
+                if response.status_code != 403:
+                    logger.warning(f"Failed to edit event {object_id} with \n"
+                                   f"client: {request.POST['client']} \n"
+                                   f"contract: {request.POST['contract']}")
+                else:
+                    logger.warning(f"Unauthorized user {request.user} failed to edit an event")
+                context, add, obj = get_context(self, request, object_id, extra_context, status_code=response.status_code)
+                return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
+        else:
+            return super().change_view(request, object_id, form_url, extra_context)
+
+    def get_queryset(self, request):
+        response = event_list(request)
+        if response.status_code in (200, 204):
+            qs = self.model._default_manager.get_queryset()
+            qs.filter(id__in=[event["id"] for event in response.data])
+            ordering = self.get_ordering(request)
+            if ordering:
+                qs = qs.order_by(*ordering)
+        elif response.status_code == 403:
+            logger.warning(f"Unauthorized user {request.user} failed to obtain the list of events.")
+            raise PermissionDenied
+        else:
+            logger.warning(f"An empty list of events was sent to {request.user}.\n"
+                           f"The API sent : {response.data}")
+            qs = self.model.objects.none()
+        return qs
+
+    def delete_model(self, request, obj):
+        response = event_delete(request, pk=obj.pk)
+        if response.status_code == 403:
+            logger.warning(f"Unauthorized user {request.user} failed to delete {obj}")
+            raise PermissionDenied
+        elif response.status_code != 204:
+            logger.warning(f"{request.user} failed to delete {obj}.\n"
+                           f"The API sent: {response.data}")
+
+    def delete_queryset(self, request, queryset):
+        for user in queryset:
+            response = event_delete(request, pk=user.pk)
+            if response.status_code == 403:
+                logger.warning(f"Unauthorized user {request.user} failed to delete {user}")
+                raise PermissionDenied
+            elif response.status_code != 204:
+                logger.warning(f"{request.user} failed to delete {user}.\n"
+                               f"The API sent: {response.data}")
+
+
+@admin.register(Client)
+class ClientAdmin(ModelAdmin):
+    form = ClientChangeForm
+    add_form = ClientCreationForm
+    list_display = ('first_name', 'last_name', 'email', 'phone_number', 'mobile_number', 'company_name', 'date_created', 'date_updated', 'sales_contact')
+    search_fields = ('date_created',)
+    ordering = ('date_created',)
+    filter_horizontal = ()
+
+    def add_view(self, request, form_url='', extra_context=None):
+        if request.method == 'POST':
+            response = client_create(request)
+            if response.status_code == 201:
+                return self.response_add(request, self.model.objects.last())
+            else:
+                if response.status_code != 403:
+                    logger.warning(f"Failed to create client with \n"
+                                   f"email: {request.POST['email']} \n"
+                                   f"first_name: {request.POST['first_name']}\n"
+                                   f"last_name: {request.POST['last_name']}\n"
+                                   f"sales_contact: {request.POST['sales_contact']}")
+                else:
+                    logger.warning(f"Unauthorized user {request.user} failed to create a client")
+                context, add, obj = get_context(self, request, None, extra_context, status_code=response.status_code)
+                return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
+        else:
+            if request.user.role in ("gestion", "sales"):
+                return super().add_view(request, form_url, extra_context)
+            else:
+                logger.warning(f"Unauthorized user {request.user} tried to acces client creation.")
+                raise PermissionDenied
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        if request.method == 'POST':
+            response = client_change(request, pk=object_id)
+            if response.status_code == 200:
+                return self.response_change(request, self.get_object(request, object_id))
+            else:
+                if response.status_code != 403:
+                    logger.warning(f"Failed to edit client {object_id} with \n"
+                                   f"email: {request.POST['email']} \n"
+                                   f"first_name: {request.POST['first_name']}\n"
+                                   f"last_name: {request.POST['last_name']}\n"
+                                   f"sale_contact: {request.POST['sales_contact']}")
+                else:
+                    logger.warning(f"Unauthorized user {request.user} failed to edit a client")
+                context, add, obj = get_context(self, request, object_id, extra_context, status_code=response.status_code)
+                return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
+        else:
+            return super().change_view(request, object_id, form_url, extra_context)
+
+    def get_queryset(self, request):
+        response = client_list(request)
+        if response.status_code in (200, 204):
+            qs = self.model._default_manager.get_queryset()
+            qs.filter(id__in=[client["id"] for client in response.data])
+            ordering = self.get_ordering(request)
+            if ordering:
+                qs = qs.order_by(*ordering)
+        elif response.status_code == 403:
+            logger.warning(f"Unauthorized user {request.user} failed to obtain the list of clients.")
+            raise PermissionDenied
+        else:
+            logger.warning(f"An empty list of clients was sent to {request.user}.\n"
+                           f"The API sent : {response.data}")
+            qs = self.model.objects.none()
+        return qs
+
+    def delete_model(self, request, obj):
+        response = client_delete(request, pk=obj.pk)
+        if response.status_code == 403:
+            logger.warning(f"Unauthorized user {request.user} failed to delete {obj}")
+            raise PermissionDenied
+        elif response.status_code != 204:
+            logger.warning(f"{request.user} failed to delete {obj}.\n"
+                           f"The API sent: {response.data}")
+
+    def delete_queryset(self, request, queryset):
+        for user in queryset:
+            response = client_delete(request, pk=user.pk)
+            if response.status_code == 403:
+                logger.warning(f"Unauthorized user {request.user} failed to delete {user}")
+                raise PermissionDenied
+            elif response.status_code != 204:
+                logger.warning(f"{request.user} failed to delete {user}.\n"
+                               f"The API sent: {response.data}")
+
+
+@admin.register(Contract)
+class ContractAdmin(ModelAdmin):
+    form = ContractChangeForm
+    add_form = ContractCreationForm
+    list_display = ('sales_contact', 'client', 'date_created', 'date_updated', 'status', 'amount', 'payment_due')
+    search_fields = ('date_created',)
+    ordering = ('date_created',)
+    filter_horizontal = ()
+
+    def add_view(self, request, form_url='', extra_context=None):
+        if request.method == 'POST':
+            response = contract_create(request)
+            if response.status_code == 201:
+                return self.response_add(request, self.model.objects.last())
+            else:
+                if response.status_code != 403:
+                    logger.warning(f"Failed to create contract with \n"
+                                   f"client: {request.POST['client']} \n"
+                                   f"sales contact: {request.POST['sales_contact']}"
+                                   f"API sent {response.data}")
+                else:
+                    logger.warning(f"Unauthorized user {request.user} failed to create a contract.")
+                context, add, obj = get_context(self, request, None, extra_context, status_code=response.status_code)
+                return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
+        else:
+            if request.user.role in ("gestion", "sales"):
+                return super().add_view(request, form_url, extra_context)
+            else:
+                logger.warning(f"Unauthorized user {request.user} tried to acces contract creation.")
+                raise PermissionDenied
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        if request.method == 'POST':
+            response = contract_change(request, pk=object_id)
+            if response.status_code == 200:
+                return self.response_change(request, self.get_object(request, object_id))
+            else:
+                if response.status_code != 403:
+                    logger.warning(f"Failed to edit contract {object_id} with \n"
+                                   f"client: {request.POST['client']} \n"
+                                   f"sales contact: {request.POST['sales_contact']}")
+                else:
+                    logger.warning(f"Unauthorized user {request.user} failed to edit a contract")
+                context, add, obj = get_context(self, request, object_id, extra_context, status_code=response.status_code)
+                return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
+        else:
+            return super().change_view(request, object_id, form_url, extra_context)
+
+    def get_queryset(self, request):
+        response = contract_list(request)
+        if response.status_code in (200, 204):
+            qs = self.model._default_manager.get_queryset()
+            qs.filter(id__in=[contract["id"] for contract in response.data])
+            ordering = self.get_ordering(request)
+            if ordering:
+                qs = qs.order_by(*ordering)
+        elif response.status_code == 403:
+            logger.warning(f"Unauthorized user {request.user} failed to obtain the list of contracts.")
+            raise PermissionDenied
+        else:
+            logger.warning(f"An empty list of contracts was sent to {request.user}.\n"
+                           f"The API sent : {response.data}")
+            qs = self.model.objects.none()
+        return qs
+
+    def delete_model(self, request, obj):
+        response = contract_delete(request, pk=obj.pk)
+        if response.status_code == 403:
+            logger.warning(f"Unauthorized user {request.user} failed to delete {obj}")
+            raise PermissionDenied
+        elif response.status_code != 204:
+            logger.warning(f"{request.user} failed to delete {obj}.\n"
+                           f"The API sent: {response.data}")
+
+    def delete_queryset(self, request, queryset):
+        for user in queryset:
+            response = contract_delete(request, pk=user.pk)
+            if response.status_code == 403:
+                logger.warning(f"Unauthorized user {request.user} failed to delete {user}")
+                raise PermissionDenied
+            elif response.status_code != 204:
                 logger.warning(f"{request.user} failed to delete {user}.\n"
                                f"The API sent: {response.data}")
 
