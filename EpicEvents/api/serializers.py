@@ -32,7 +32,7 @@ class ClientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
         fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'mobile_number', 'company_name',
-                  'date_created', 'date_updated', 'sales_contact']
+                  'date_created', 'date_updated', 'sales_contact', 'events', 'contracts']
 
 
 class EventSerializer(serializers.ModelSerializer):
