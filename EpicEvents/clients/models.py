@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from phonenumber_field.modelfields import PhoneNumberField
 
 
@@ -31,7 +32,7 @@ class Client(models.Model):
 
 class Contract(models.Model):
     sales_contact = models.ForeignKey('accounts.MyUser', on_delete=models.CASCADE, limit_choices_to={'role': 'sales'}, related_name="contracts")
-    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="contracts")
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="contracts", limit_choices_to=Q(sales_contact__isnull=False))
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
     status = models.BooleanField()
