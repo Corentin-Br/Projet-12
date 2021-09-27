@@ -56,7 +56,7 @@ class ClientAdmin(ModelAdmin):
     form = ClientChangeForm
     add_form = ClientCreationForm
     list_display = ('first_name', 'last_name', 'email', 'phone_number', 'mobile_number', 'company_name', 'date_created', 'date_updated', 'sales_contact')
-    search_fields = ('date_created',)
+    search_fields = ('company_name', 'email')
     ordering = ('date_created',)
     filter_horizontal = ()
 
@@ -106,7 +106,7 @@ class ClientAdmin(ModelAdmin):
         response = client_list(request)
         if response.status_code in (200, 204):
             qs = self.model._default_manager.get_queryset()
-            qs.filter(id__in=[client["id"] for client in response.data])
+            qs = qs.filter(id__in=[client["id"] for client in response.data])
             ordering = self.get_ordering(request)
             if ordering:
                 qs = qs.order_by(*ordering)
@@ -191,7 +191,7 @@ class ContractAdmin(ModelAdmin):
         response = contract_list(request)
         if response.status_code in (200, 204):
             qs = self.model._default_manager.get_queryset()
-            qs.filter(id__in=[contract["id"] for contract in response.data])
+            qs = qs.filter(id__in=[contract["id"] for contract in response.data])
             ordering = self.get_ordering(request)
             if ordering:
                 qs = qs.order_by(*ordering)

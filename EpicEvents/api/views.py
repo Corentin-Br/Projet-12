@@ -95,7 +95,7 @@ class EventAPIViewSet(ModelViewSet):
         if contact is not None:
             queryset = queryset.filter(client__sales_contact__email=contact)
         if support is not None:
-            queryset = queryset.filter(support_email=support)
+            queryset = queryset.filter(support__email=support)
         return queryset
 
 

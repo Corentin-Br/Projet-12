@@ -86,7 +86,7 @@ class EventAdmin(ModelAdmin):
         response = event_list(request)
         if response.status_code in (200, 204):
             qs = self.model._default_manager.get_queryset()
-            qs.filter(id__in=[event["id"] for event in response.data])
+            qs = qs.filter(id__in=[event["id"] for event in response.data])
             ordering = self.get_ordering(request)
             if ordering:
                 qs = qs.order_by(*ordering)

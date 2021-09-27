@@ -67,7 +67,7 @@ class UserAdmin(BaseUserAdmin):
     fieldsets = ((None, {'fields': form.Meta.fields}),)
     add_fieldsets = ((None, {'fields': add_form.Meta.fields}),)
     list_filter = ('is_admin',)
-    search_fields = ('email',)
+    search_fields = ('email', 'role')
     ordering = ('email',)
     filter_horizontal = ()
 
@@ -122,7 +122,7 @@ class UserAdmin(BaseUserAdmin):
         response = user_list(request)
         if response.status_code in (200, 204):
             qs = self.model._default_manager.get_queryset()
-            qs.filter(id__in=[user["id"] for user in response.data])
+            qs = qs.filter(id__in=[user["id"] for user in response.data])
             ordering = self.get_ordering(request)
             if ordering:
                 qs = qs.order_by(*ordering)
