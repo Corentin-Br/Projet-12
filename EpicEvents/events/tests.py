@@ -11,7 +11,7 @@ from .models import Event
 default_password = "correcthorsebatterystaple"
 
 @patch.object(events.admin.file_handler, 'stream', open('debug3.log', 'a'))
-class MyTest(TestCase):
+class EventsTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.gestion_logs = {"email": "corentin@gmail.com", "password": default_password}
@@ -213,39 +213,37 @@ class MyTest(TestCase):
         assert resp.status_code == 302
         assert len(Event.objects.all()) == number_of_events + 1
 
-    def test_unlogged_user_cant_create_an_event(self):
-        number_of_events = len(Event.objects.all())
-        resp = self.client.post("/admin/events/event/add/", self.event_additional_data_2)
-        assert resp.status_code == 302
-        assert resp.url == f"/admin/login/?next={resp.request['PATH_INFO']}"
-        assert len(Event.objects.all()) == number_of_events
-
     def test_support_user_cant_create_an_event(self):
         self.client.login(**self.support_logs)
         number_of_events = len(Event.objects.all())
         resp = self.client.post("/admin/events/event/add/", self.event_additional_data_2)
         assert resp.status_code == 403
         assert len(Event.objects.all()) == number_of_events
-    #
-    # def test_support_and_sales_user_cant_create_a_user(self):
-    #     for logs in (self.support_logs, self.sales_logs):
-    #         self.client.login(**logs)
-    #         number_of_events = len(Event.objects.all())
-    #         resp = self.client.post("/admin/accounts/myuser/add/", self.additional_user_data)
-    #         assert resp.status_code == 403
-    #         assert len(Event.objects.all()) == number_of_events
-    #
-    # def test_gestion_user_can_delete_a_user(self):
-    #     self.client.login(**self.gestion_logs)
-    #     number_of_events = len(Event.objects.all())
-    #     resp = self.client.post("/admin/accounts/myuser/2/delete/", {"post": "yes"})
-    #     assert resp.status_code == 302
-    #     assert len(Event.objects.all()) == number_of_events - 1
-    #
-    # def test_support_and_sales_user_cant_delete_a_user(self):
-    #     for logs in (self.support_logs, self.sales_logs):
-    #         self.client.login(**logs)
-    #         number_of_events = len(Event.objects.all())
-    #         resp = self.client.post("/admin/accounts/myuser/1/delete/", {"post": "yes"})
-    #         assert resp.status_code == 403
-    #         assert len(Event.objects.all()) == number_of_events
+
+    def test_gestion_user_can_delete_an_event(self):
+        self.client.login(**self.gestion_logs)
+        number_of_events = len(Event.objects.all())
+        resp = self.client.post(f"/admin/events/event/{self.event1.pk}/delete/", {"post": "yes"})
+        assert resp.status_code == 302
+        assert len(Event.objects.all()) == number_of_events - 1
+
+    def test_sales_user_cant_delete_an_event(self):
+        self.client.login(**self.sales_logs)
+        number_of_events = len(Event.objects.all())
+        resp = self.client.post(f"/admin/events/event/{self.event1.pk}/delete/", {"post": "yes"})
+        assert resp.status_code == 403
+        assert len(Event.objects.all()) == number_of_events
+
+    def test_support_user_can_delete_their_events(self):
+        self.client.login(**self.support_logs)
+        number_of_events = len(Event.objects.all())
+        resp = self.client.post(f"/admin/events/event/{self.event1.pk}/delete/", {"post": "yes"})
+        assert resp.status_code == 302
+        assert len(Event.objects.all()) == number_of_events - 1
+
+    def test_support_user_cant_delete_other_events(self):
+        self.client.login(**self.support_logs)
+        number_of_events = len(Event.objects.all())
+        resp = self.client.post(f"/admin/events/event/{self.event2.pk}/delete/", {"post": "yes"})
+        assert resp.status_code == 403
+        assert len(Event.objects.all()) == number_of_events
