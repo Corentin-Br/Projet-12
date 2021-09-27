@@ -28,7 +28,7 @@ class IsContactOrSupportOrReadOnly(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
-            return True
+            return request.user.role in ("sales", "support", "gestion")
         return view.queryset.filter(pk=obj.id, support=request.user).exists() or request.user.role == "gestion"
 
 
