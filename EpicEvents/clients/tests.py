@@ -309,6 +309,41 @@ class ClientsTest(TestCase):
         assert len(Contract.objects.all()) == number_of_objects
         assert resp.url == f"/admin/login/?next={resp.request['PATH_INFO']}"
 
+    def test_gestion_user_can_delete_a_client(self):
+        number_of_objects = len(Client.objects.all())
+        self.client.login(**self.gestion_logs)
+        resp = self.client.post(f"/admin/clients/client/{self.client1.pk}/delete/", {"post": "yes"})
+        assert resp.status_code == 302
+        assert len(Client.objects.all()) == number_of_objects - 1
+
+    def test_sales_user_can_delete_their_clients(self):
+        number_of_objects = len(Client.objects.all())
+        self.client.login(**self.sales_logs)
+        resp = self.client.post(f"/admin/clients/client/{self.client2.pk}/delete/", {"post": "yes"})
+        assert resp.status_code == 302
+        assert len(Client.objects.all()) == number_of_objects - 1
+
+    def test_sales_user_cant_delete_other_clients(self):
+        number_of_objects = len(Client.objects.all())
+        self.client.login(**self.sales_logs)
+        resp = self.client.post(f"/admin/clients/client/{self.client3.pk}/delete/", {"post": "yes"})
+        assert resp.status_code == 403
+        assert len(Client.objects.all()) == number_of_objects
+
+    def test_support_user_cant_delete_a_client(self):
+        number_of_objects = len(Client.objects.all())
+        self.client.login(**self.support_logs)
+        resp = self.client.post(f"/admin/clients/client/{self.client1.pk}/delete/", {"post": "yes"})
+        assert resp.status_code == 403
+        assert len(Client.objects.all()) == number_of_objects
+
+    def test_unlogged_user_cant_delete_a_client(self):
+        number_of_objects = len(Client.objects.all())
+        resp = self.client.post(f"/admin/clients/client/{self.client1.pk}/delete/", {"post": "yes"})
+        assert resp.status_code == 302
+        assert len(Client.objects.all()) == number_of_objects
+        assert resp.url == f"/admin/login/?next={resp.request['PATH_INFO']}"
+
     def test_gestion_user_can_delete_a_contract(self):
         number_of_objects = len(Contract.objects.all())
         self.client.login(**self.gestion_logs)
@@ -316,12 +351,19 @@ class ClientsTest(TestCase):
         assert resp.status_code == 302
         assert len(Contract.objects.all()) == number_of_objects - 1
 
-    def test_sales_user_can_delete_a_contract(self):
+    def test_sales_user_can_delete_their_contracts(self):
         number_of_objects = len(Contract.objects.all())
         self.client.login(**self.sales_logs)
         resp = self.client.post(f"/admin/clients/contract/{self.contract1.pk}/delete/", {"post": "yes"})
         assert resp.status_code == 302
         assert len(Contract.objects.all()) == number_of_objects - 1
+
+    def test_sales_user_cant_delete_other_contracts(self):
+        number_of_objects = len(Contract.objects.all())
+        self.client.login(**self.sales_logs)
+        resp = self.client.post(f"/admin/clients/contract/{self.contract2.pk}/delete/", {"post": "yes"})
+        assert resp.status_code == 403
+        assert len(Contract.objects.all()) == number_of_objects
 
     def test_support_user_cant_delete_a_contract(self):
         number_of_objects = len(Contract.objects.all())
