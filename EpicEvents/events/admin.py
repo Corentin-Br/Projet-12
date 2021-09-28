@@ -3,8 +3,7 @@ import logging
 from django import forms
 from django.contrib import admin
 from django.contrib.admin.options import ModelAdmin
-from django.core.exceptions import PermissionDenied
-
+from django.core.exceptions import PermissionDenied, ValidationError
 
 from api.urls import event_create, event_change, event_list, event_delete
 
@@ -25,6 +24,15 @@ class EventCreationForm(forms.ModelForm):
         model = Event
         fields = ('client', 'support', 'contract', 'attendees', 'date', 'notes')
 
+    def clean(self):
+        cleaned_data = super().clean()
+        client = cleaned_data.get('client')
+        contract_client = getattr(cleaned_data.get("contract"), "client")
+
+        if client and contract_client:
+            if client != contract_client:
+                raise ValidationError("The client for the event and the client on the contract must be the same.")
+
 
 class EventChangeForm(forms.ModelForm):
     """A form for updating events."""
@@ -32,6 +40,15 @@ class EventChangeForm(forms.ModelForm):
     class Meta:
         model = Event
         fields = ('client', 'support', 'contract', 'attendees', 'date', 'notes')
+
+    def clean(self):
+        cleaned_data = super().clean()
+        client = cleaned_data.get('client')
+        contract_client = getattr(cleaned_data.get("contract"), "client")
+
+        if client and contract_client:
+            if client != contract_client:
+                raise ValidationError("The client for the event and the client on the contract must be the same.")
 
 
 @admin.register(Event)
