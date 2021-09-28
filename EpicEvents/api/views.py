@@ -24,7 +24,7 @@ class UserAPIViewSet(ModelViewSet):
             serializer.save()
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = super().get_queryset()
         email = self.request.query_params.get('email')
         role = self.request.query_params.get('role')
         if email is not None:
@@ -40,7 +40,7 @@ class ClientAPIViewSet(ModelViewSet):
     serializer_class = ClientSerializer
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = super().get_queryset()
         email = self.request.query_params.get('email')
         company_name = self.request.query_params.get('company')
         sales_contact = self.request.query_params.get('contact')
@@ -86,7 +86,7 @@ class EventAPIViewSet(ModelViewSet):
         return Response(serializer.data)
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = super().get_queryset()
         client = self.request.query_params.get('client')
         support = self.request.query_params.get('support')
         contact = self.request.query_params.get('contact')
@@ -132,7 +132,7 @@ class ContractAPIViewSet(ModelViewSet):
         return Response(serializer.data)
 
     def get_queryset(self):
-        queryset = self.queryset
+        queryset = super().get_queryset()
         due = self.request.query_params.get('due')
         client = self.request.query_params.get('client')
         contact = self.request.query_params.get('contact')
