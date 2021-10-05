@@ -10,11 +10,11 @@ from api.urls import event_create, event_change, event_list, event_delete
 from .models import Event
 from accounts.admin import create_view, modification_view, list_view, delete_view
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 file_handler = logging.FileHandler('debug2.log')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+module_logger.addHandler(file_handler)
 
 
 class EventCreationForm(forms.ModelForm):
@@ -64,6 +64,7 @@ class EventAdmin(ModelAdmin):
                  "list": event_list,
                  "delete": event_delete}
     data_to_log = ["client", "contract"]
+    logger = module_logger
 
     def add_view(self, request, form_url='', extra_context=None):
         return create_view(self, request, allowed_roles=["gestion", "sales"], form_url=form_url, extra_context=extra_context)

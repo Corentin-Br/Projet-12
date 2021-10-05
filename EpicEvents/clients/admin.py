@@ -11,11 +11,11 @@ from api.urls import contract_create, contract_change, contract_list, contract_d
 from .models import Contract, Client
 from accounts.admin import create_view, modification_view, list_view, delete_view
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 file_handler = logging.FileHandler('debug2.log')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+module_logger.addHandler(file_handler)
 
 
 class ClientCreationForm(forms.ModelForm):
@@ -63,6 +63,7 @@ class ClientAdmin(ModelAdmin):
                  "list": client_list,
                  "delete": client_delete}
     data_to_log = ["email", "first_name", "last_name", "sales_contact"]
+    logger = module_logger
 
     def add_view(self, request, form_url='', extra_context=None):
         return create_view(self, request, allowed_roles=["gestion", "sales"], form_url=form_url, extra_context=extra_context)
@@ -94,6 +95,7 @@ class ContractAdmin(ModelAdmin):
                  "list": contract_list,
                  "delete": contract_delete}
     data_to_log = ["client", "sales_contact"]
+    logger = module_logger
 
     def add_view(self, request, form_url='', extra_context=None):
         return create_view(self, request, allowed_roles=["gestion", "sales"], form_url=form_url, extra_context=extra_context)

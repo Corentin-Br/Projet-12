@@ -15,11 +15,11 @@ from django.core.exceptions import PermissionDenied
 from .models import MyUser
 from api.urls import user_change, user_create, user_list, user_delete
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 file_handler = logging.FileHandler('debug2.log')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+module_logger.addHandler(file_handler)
 
 
 class UserCreationForm(forms.ModelForm):
@@ -76,6 +76,7 @@ class UserAdmin(BaseUserAdmin):
                  "list": user_list,
                  "delete": user_delete}
     data_to_log = ["email", "first_name", "last_name", "role"]
+    logger = module_logger
 
     def add_view(self, request, form_url='', extra_context=None):
         return create_view(self, request, allowed_roles=["gestion"], form_url=form_url, extra_context=extra_context)
@@ -181,11 +182,13 @@ def get_context(admin_model, request, object_id, extra_context, status_code):
     return context, add, obj
 
 
-def create_view(admin_model, request, allowed_roles, form_url='', extra_context=None, api_view=None, logs=None):
+def create_view(admin_model, request, allowed_roles, form_url='', extra_context=None, api_view=None, logs=None, logger=None):
     if api_view is None:
         api_view = admin_model.api_views["create"]
     if logs is None:
         logs = admin_model.data_to_log
+    if logger is None:
+        logger = admin_model.logger
     model_name = admin_model.model.__name__.lower()
     if request.method == 'POST':
         if "password" in request.POST and "password2" in request.POST:
@@ -219,11 +222,13 @@ def create_view(admin_model, request, allowed_roles, form_url='', extra_context=
             raise PermissionDenied
 
 
-def modification_view(admin_model, request, object_id, api_view=None, logs=None, form_url='', extra_context=None):
+def modification_view(admin_model, request, object_id, api_view=None, logs=None, form_url='', extra_context=None, logger=None):
     if api_view is None:
         api_view = admin_model.api_views["change"]
     if logs is None:
         logs = admin_model.data_to_log
+    if logger is None:
+        logger = admin_model.logger
     model_name = admin_model.model.__name__.lower()
     if request.method == 'POST':
         response = api_view(request, pk=object_id)
@@ -247,10 +252,12 @@ def modification_view(admin_model, request, object_id, api_view=None, logs=None,
         return super(type(admin_model), admin_model).change_view(request, object_id, form_url, extra_context)
 
 
-def list_view(admin_model, request, api_view=None):
+def list_view(admin_model, request, api_view=None, logger=None):
     model_name = admin_model.model.__name__.lower()
     if api_view is None:
         api_view = admin_model.api_views["list"]
+    if logger is None:
+        logger = admin_model.logger
     response = api_view(request)
     if response.status_code in (200, 204):
         qs = admin_model.model._default_manager.get_queryset()
@@ -268,9 +275,11 @@ def list_view(admin_model, request, api_view=None):
     return qs
 
 
-def delete_view(admin_model, request, obj, api_view=None):
+def delete_view(admin_model, request, obj, api_view=None, logger=None):
     if api_view is None:
         api_view = admin_model.api_views["delete"]
+    if logger is None:
+        logger = admin_model.logger
     response = api_view(request, pk=obj.pk)
     if response.status_code == 403:
         logger.warning(f"Unauthorized user {request.user} failed to delete {obj}")
