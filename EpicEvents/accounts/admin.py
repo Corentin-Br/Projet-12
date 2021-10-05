@@ -11,6 +11,7 @@ from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.core.exceptions import ValidationError
 from django.core.exceptions import PermissionDenied
 
+
 from .models import MyUser
 from api.urls import user_change, user_create, user_list, user_delete
 
@@ -72,32 +73,9 @@ class UserAdmin(BaseUserAdmin):
     filter_horizontal = ()
 
     def add_view(self, request, form_url='', extra_context=None):
-        if request.method == 'POST':
-            if request.POST["password"] == request.POST["password2"]:
-                response = user_create(request)
-                if response.status_code == 201:
-                    return self.response_add(request, self.model.objects.last())
-                else:
-                    if response.status_code != 403:
-                        logger.warning(f"Failed to create user with \n"
-                                       f"email: {request.POST['email']} \n"
-                                       f"first_name: {request.POST['first_name']}\n"
-                                       f"last_name: {request.POST['last_name']}\n"
-                                       f"role: {request.POST['role']}")
-                    else:
-                        logger.warning(f"Unauthorized user {request.user} failed to create an user")
-                    context, add, obj = get_context(self, request, None, extra_context, status_code=response.status_code)
-                    return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
-            else:
-                logger.warning(f"Password mismatch: failed to create user")
-                context, add, obj = get_context(self, request, None, extra_context, status_code=200)
-                return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
-        else:
-            if request.user.role == "gestion":
-                return super().add_view(request, form_url, extra_context)
-            else:
-                logger.warning(f"Unauthorized user {request.user} tried to acces user creation.")
-                raise PermissionDenied
+        return create_view(self, request, api_view=user_create, allowed_roles=["gestion"],
+                    logs=["email", "first_name", "last_name", "role"], form_url=form_url,
+                    extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         if request.method == 'POST':
@@ -243,3 +221,33 @@ def get_context(admin_model, request, object_id, extra_context, status_code):
 
 
 admin.site.register(MyUser, UserAdmin)
+
+def create_view(admin_model, request, logs, api_view, allowed_roles, form_url='', extra_context=None):
+    model_name = admin_model.model.__name__.lower()
+    if request.method == 'POST':
+        if "password" in request.POST and "password2" in request.POST:
+            if request.POST["password"] != request.POST["password2"]:
+                logger.warning(f"Password mismatch: failed to create user")
+                context, add, obj = get_context(admin_model, request, None, extra_context, status_code=200)
+                return admin_model.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
+        response = api_view(request)
+        if response.status_code == 201:
+            return admin_model.response_add(request, admin_model.model.objects.last())
+        else:
+            if response.status_code != 403:
+                data = "\n".join(
+                    [f"{information.replace('_', ' ')}:{request.POST[information]}"
+                     for information in logs])
+                logger.warning(f"Failed to create {model_name} with \n"
+                               f"{data} \n"
+                               f"The API sent {response.data}")
+            else:
+                logger.warning(f"Unauthorized user {request.user} failed to create a {model_name}")
+            context, add, obj = get_context(admin_model, request, None, extra_context, status_code=response.status_code)
+            return admin_model.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
+    else:
+        if request.user.role in allowed_roles:
+            return super(type(admin_model), admin_model).add_view(request, form_url, extra_context)
+        else:
+            logger.warning(f"Unauthorized user {request.user} tried to acces {model_name} creation.")
+            raise PermissionDenied

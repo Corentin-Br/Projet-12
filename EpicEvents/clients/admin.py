@@ -10,7 +10,7 @@ from api.urls import client_create, client_change, client_list, client_delete
 from api.urls import contract_create, contract_change, contract_list, contract_delete
 
 from .models import Contract, Client
-from accounts.admin import get_context
+from accounts.admin import get_context, create_view
 
 logger = logging.getLogger(__name__)
 file_handler = logging.FileHandler('debug2.log')
@@ -61,27 +61,8 @@ class ClientAdmin(ModelAdmin):
     filter_horizontal = ()
 
     def add_view(self, request, form_url='', extra_context=None):
-        if request.method == 'POST':
-            response = client_create(request)
-            if response.status_code == 201:
-                return self.response_add(request, self.model.objects.last())
-            else:
-                if response.status_code != 403:
-                    logger.warning(f"Failed to create client with \n"
-                                   f"email: {request.POST['email']} \n"
-                                   f"first_name: {request.POST['first_name']}\n"
-                                   f"last_name: {request.POST['last_name']}\n"
-                                   f"sales_contact: {request.POST['sales_contact']}")
-                else:
-                    logger.warning(f"Unauthorized user {request.user} failed to create a client")
-                context, add, obj = get_context(self, request, None, extra_context, status_code=response.status_code)
-                return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
-        else:
-            if request.user.role in ("gestion", "sales"):
-                return super().add_view(request, form_url, extra_context)
-            else:
-                logger.warning(f"Unauthorized user {request.user} tried to acces client creation.")
-                raise PermissionDenied
+        return create_view(self, request, api_view=client_create, allowed_roles=["gestion", "sales"], logs=["email", "first_name", "last_name", "sales_contact"], form_url=form_url, extra_context=extra_context)
+
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         if request.method == 'POST':
@@ -149,26 +130,7 @@ class ContractAdmin(ModelAdmin):
     filter_horizontal = ()
 
     def add_view(self, request, form_url='', extra_context=None):
-        if request.method == 'POST':
-            response = contract_create(request)
-            if response.status_code == 201:
-                return self.response_add(request, self.model.objects.last())
-            else:
-                if response.status_code != 403:
-                    logger.warning(f"Failed to create contract with \n"
-                                   f"client: {request.POST['client']} \n"
-                                   f"sales contact: {request.POST['sales_contact']}"
-                                   f"API sent {response.data}")
-                else:
-                    logger.warning(f"Unauthorized user {request.user} failed to create a contract.")
-                context, add, obj = get_context(self, request, None, extra_context, status_code=response.status_code)
-                return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
-        else:
-            if request.user.role in ("gestion", "sales"):
-                return super().add_view(request, form_url, extra_context)
-            else:
-                logger.warning(f"Unauthorized user {request.user} tried to acces contract creation.")
-                raise PermissionDenied
+        return create_view(self, request, api_view=contract_create, allowed_roles=["gestion", "sales"], logs=["client", "sales_contact"], form_url=form_url, extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         if request.method == 'POST':
@@ -222,3 +184,6 @@ class ContractAdmin(ModelAdmin):
             elif response.status_code != 204:
                 logger.warning(f"{request.user} failed to delete {user}.\n"
                                f"The API sent: {response.data}")
+
+
+

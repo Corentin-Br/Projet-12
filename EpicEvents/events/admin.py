@@ -8,7 +8,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from api.urls import event_create, event_change, event_list, event_delete
 
 from .models import Event
-from accounts.admin import get_context
+from accounts.admin import get_context, create_view
 
 logger = logging.getLogger(__name__)
 file_handler = logging.FileHandler('debug2.log')
@@ -61,26 +61,9 @@ class EventAdmin(ModelAdmin):
     filter_horizontal = ()
 
     def add_view(self, request, form_url='', extra_context=None):
-        if request.method == 'POST':
-            response = event_create(request)
-            if response.status_code == 201:
-                return self.response_add(request, self.model.objects.last())
-            else:
-                if response.status_code != 403:
-                    logger.warning(f"Failed to create event with \n"
-                                   f"client: {request.POST['client']} \n"
-                                   f"contract: {request.POST['contract']}.")
-
-                else:
-                    logger.warning(f"Unauthorized user {request.user} failed to create an event")
-                context, add, obj = get_context(self, request, None, extra_context, status_code=response.status_code)
-                return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
-        else:
-            if request.user.role in ("gestion", "sales"):
-                return super().add_view(request, form_url, extra_context)
-            else:
-                logger.warning(f"Unauthorized user {request.user} tried to acces event creation.")
-                raise PermissionDenied
+        return create_view(self, request, api_view=event_create, allowed_roles=["gestion", "sales"],
+                           logs=["client", "contract"], form_url=form_url,
+                           extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         if request.method == 'POST':
