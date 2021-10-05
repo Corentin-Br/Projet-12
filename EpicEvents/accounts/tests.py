@@ -6,7 +6,7 @@ from accounts.models import MyUser
 
 default_password = "correcthorsebatterystaple"
 
-@patch.object(accounts.admin.file_handler, 'stream', open('debug3.log', 'a'))
+@patch.object(accounts.admin.file_handler, 'stream', open('debug_test.log', 'a'))
 class AccountsTest(TestCase):
     @classmethod
     def setUpTestData(cls):

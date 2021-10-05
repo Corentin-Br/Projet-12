@@ -10,7 +10,7 @@ from .models import Client, Contract
 default_password = "correcthorsebatterystaple"
 
 
-@patch.object(clients.admin.file_handler, 'stream', open('debug3.log', 'a'))
+@patch.object(clients.admin.file_handler, 'stream', open('debug_test.log', 'a'))
 class ClientsTest(TestCase):
     @classmethod
     def setUpTestData(cls):

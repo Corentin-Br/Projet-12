@@ -10,7 +10,7 @@ from .models import Event
 
 default_password = "correcthorsebatterystaple"
 
-@patch.object(events.admin.file_handler, 'stream', open('debug3.log', 'a'))
+@patch.object(events.admin.file_handler, 'stream', open('debug_test.log', 'a'))
 class EventsTest(TestCase):
     @classmethod
     def setUpTestData(cls):
