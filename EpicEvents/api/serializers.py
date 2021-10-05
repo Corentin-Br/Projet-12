@@ -14,6 +14,7 @@ class MyUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyUser
         fields = ['id', 'email', 'first_name', 'last_name', 'password', 'role', 'events', 'clients', 'contracts']
+        read_only_fields = ['id']
 
     def create(self, validated_data):
         return MyUser.objects.create_user(**validated_data)
@@ -33,12 +34,14 @@ class ClientSerializer(serializers.ModelSerializer):
         model = Client
         fields = ['id', 'first_name', 'last_name', 'email', 'phone_number', 'mobile_number', 'company_name',
                   'date_created', 'date_updated', 'sales_contact', 'events', 'contracts']
+        read_only_fields = ['id', 'date_created', 'date_updated']
 
 
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
         fields = ['id', 'client', 'date_created', 'date_updated', 'support', 'contract', 'attendees', 'date', 'notes']
+        read_only_fields = ['id', 'date_created', 'date_updated']
 
     def validate(self, data):
         if data["contract"].client != data["client"]:
@@ -49,5 +52,6 @@ class ContractSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contract
         fields = ['id', 'sales_contact', 'client', 'date_created', 'date_updated', 'status', 'amount', 'payment_due']
+        read_only_fields = ['id', 'date_created', 'date_updated']
 
 
