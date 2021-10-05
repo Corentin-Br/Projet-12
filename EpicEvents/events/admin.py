@@ -3,12 +3,12 @@ import logging
 from django import forms
 from django.contrib import admin
 from django.contrib.admin.options import ModelAdmin
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import ValidationError
 
 from api.urls import event_create, event_change, event_list, event_delete
 
 from .models import Event
-from accounts.admin import create_view, modification_view
+from accounts.admin import create_view, modification_view, list_view, delete_view
 
 logger = logging.getLogger(__name__)
 file_handler = logging.FileHandler('debug2.log')
@@ -68,55 +68,14 @@ class EventAdmin(ModelAdmin):
     def change_view(self, request, object_id, form_url='', extra_context=None):
         return modification_view(self, request, object_id, logs=["client", "contract"],
                                  api_view=event_change, form_url='', extra_context=None)
-        # if request.method == 'POST':
-        #     response = event_change(request, pk=object_id)
-        #     if response.status_code == 200:
-        #         return self.response_change(request, self.get_object(request, object_id))
-        #     else:
-        #         if response.status_code != 403:
-        #             logger.warning(f"Failed to edit event {object_id} with \n"
-        #                            f"client: {request.POST['client']} \n"
-        #                            f"contract: {request.POST['contract']}")
-        #         else:
-        #             logger.warning(f"Unauthorized user {request.user} failed to edit an event")
-        #         context, add, obj = get_context(self, request, object_id, extra_context, status_code=response.status_code)
-        #         return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
-        # else:
-        #     return super().change_view(request, object_id, form_url, extra_context)
 
     def get_queryset(self, request):
-        response = event_list(request)
-        if response.status_code in (200, 204):
-            qs = self.model._default_manager.get_queryset()
-            qs = qs.filter(id__in=[event["id"] for event in response.data])
-            ordering = self.get_ordering(request)
-            if ordering:
-                qs = qs.order_by(*ordering)
-        elif response.status_code == 403:
-            logger.warning(f"Unauthorized user {request.user} failed to obtain the list of events.")
-            raise PermissionDenied
-        else:
-            logger.warning(f"An empty list of events was sent to {request.user}.\n"
-                           f"The API sent : {response.data}")
-            qs = self.model.objects.none()
-        return qs
+        return list_view(self, request, event_list)
 
     def delete_model(self, request, obj):
-        response = event_delete(request, pk=obj.pk)
-        if response.status_code == 403:
-            logger.warning(f"Unauthorized user {request.user} failed to delete {obj}")
-            raise PermissionDenied
-        elif response.status_code != 204:
-            logger.warning(f"{request.user} failed to delete {obj}.\n"
-                           f"The API sent: {response.data}")
+        delete_view(request, obj, event_delete)
 
     def delete_queryset(self, request, queryset):
-        for user in queryset:
-            response = event_delete(request, pk=user.pk)
-            if response.status_code == 403:
-                logger.warning(f"Unauthorized user {request.user} failed to delete {user}")
-                raise PermissionDenied
-            elif response.status_code != 204:
-                logger.warning(f"{request.user} failed to delete {user}.\n"
-                               f"The API sent: {response.data}")
+        for model in queryset:
+            self.delete_model(request, model)
 

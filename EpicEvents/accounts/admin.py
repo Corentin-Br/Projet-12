@@ -79,60 +79,19 @@ class UserAdmin(BaseUserAdmin):
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         return modification_view(self, request, object_id, logs=["email", "first_name", "last_name", "role"], api_view=user_change, form_url='', extra_context=None)
-        # if request.method == 'POST':
-        #     response = user_change(request, pk=object_id)
-        #     if response.status_code == 200:
-        #         return self.response_change(request, self.get_object(request, object_id))
-        #     else:
-        #         if response.status_code != 403:
-        #             logger.warning(f"Failed to edit user {object_id} with \n"
-        #                            f"email: {request.POST['email']} \n"
-        #                            f"first_name: {request.POST['first_name']}\n"
-        #                            f"last_name: {request.POST['last_name']}\n"
-        #                            f"role: {request.POST['role']}")
-        #         else:
-        #             logger.warning(f"Unauthorized user {request.user} failed to edit an user")
-        #         context, add, obj = get_context(self, request, object_id, extra_context,
-        #                                         status_code=response.status_code)
-        #         return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
-        # else:
-        #     return super().change_view(request, object_id, form_url, extra_context)
 
     def get_queryset(self, request):
-        response = user_list(request)
-        if response.status_code in (200, 204):
-            qs = self.model._default_manager.get_queryset()
-            qs = qs.filter(id__in=[user["id"] for user in response.data])
-            ordering = self.get_ordering(request)
-            if ordering:
-                qs = qs.order_by(*ordering)
-        elif response.status_code == 403:
-            logger.warning(f"Unauthorized user {request.user} failed to obtain the list of users.")
-            raise PermissionDenied
-        else:
-            logger.warning(f"An empty list of users was sent to {request.user}.\n"
-                           f"The API sent : {response.data}")
-            qs = self.model.objects.none()
-        return qs
+        return list_view(self, request, user_list)
 
     def delete_model(self, request, obj):
-        response = user_delete(request, pk=obj.pk)
-        if response.status_code == 403:
-            logger.warning(f"Unauthorized user {request.user} failed to delete {obj}")
-            raise PermissionDenied
-        elif response.status_code != 204:
-            logger.warning(f"{request.user} failed to delete {obj}.\n"
-                           f"The API sent: {response.data}")
+        delete_view(request, obj, user_delete)
 
     def delete_queryset(self, request, queryset):
-        for user in queryset:
-            response = user_delete(request, pk=user.pk)
-            if response.status_code == 403:
-                logger.warning(f"Unauthorized user {request.user} failed to delete {user}")
-                raise PermissionDenied
-            elif response.status_code != 204:
-                logger.warning(f"{request.user} failed to delete {user}.\n"
-                               f"The API sent: {response.data}")
+        for model in queryset:
+            self.delete_model(request, model)
+
+
+admin.site.register(MyUser, UserAdmin)
 
 
 def get_context(admin_model, request, object_id, extra_context, status_code):
@@ -219,9 +178,6 @@ def get_context(admin_model, request, object_id, extra_context, status_code):
     return context, add, obj
 
 
-admin.site.register(MyUser, UserAdmin)
-
-
 def create_view(admin_model, request, logs, api_view, allowed_roles, form_url='', extra_context=None):
     model_name = admin_model.model.__name__.lower()
     if request.method == 'POST':
@@ -278,3 +234,34 @@ def modification_view(admin_model, request, object_id, logs, api_view, form_url=
                                                   form_url=form_url)
     else:
         return super(type(admin_model), admin_model).change_view(request, object_id, form_url, extra_context)
+
+
+def list_view(admin_model, request, api_view):
+    model_name = admin_model.model.__name__.lower()
+    response = api_view(request)
+    if response.status_code in (200, 204):
+        qs = admin_model.model._default_manager.get_queryset()
+        qs = qs.filter(id__in=[item["id"] for item in response.data])
+        ordering = admin_model.get_ordering(request)
+        if ordering:
+            qs = qs.order_by(*ordering)
+    elif response.status_code == 403:
+        logger.warning(f"Unauthorized user {request.user} failed to obtain the list of {model_name}s.")
+        raise PermissionDenied
+    else:
+        logger.warning(f"An empty list of {model_name}s was sent to {request.user}.\n"
+                       f"The API sent : {response.data}")
+        qs = admin_model.model.objects.none()
+    return qs
+
+
+def delete_view(request, obj, api_view):
+    response = api_view(request, pk=obj.pk)
+    if response.status_code == 403:
+        logger.warning(f"Unauthorized user {request.user} failed to delete {obj}")
+        raise PermissionDenied
+    elif response.status_code != 204:
+        logger.warning(f"{request.user} failed to delete {obj}.\n"
+                       f"The API sent: {response.data}")
+
+
