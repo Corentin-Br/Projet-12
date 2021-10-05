@@ -17,9 +17,13 @@ class MyUserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
     def create(self, validated_data):
+        """Use the create_user method of the user to create it.
+
+        It ensures that it follows the model rules."""
         return MyUser.objects.create_user(**validated_data)
 
     def save(self, **kwargs):
+        """Save the model. If a password is given, turn it into a proper password."""
         if "password" in kwargs:
             kwargs["password"] = make_password(kwargs["password"])
         self.instance = super().save(**kwargs)
@@ -44,9 +48,11 @@ class EventSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'date_created', 'date_updated']
 
     def validate(self, data):
+        """Ensure that the client and the client in the contract are the samen, in addition to all usual checks."""
         if data["contract"].client != data["client"]:
             raise serializers.ValidationError("The client must be the same for the event and the contract!")
         return super().validate(data)
+
 
 class ContractSerializer(serializers.ModelSerializer):
     class Meta:

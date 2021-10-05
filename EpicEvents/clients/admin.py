@@ -9,7 +9,7 @@ from api.urls import client_create, client_change, client_list, client_delete
 from api.urls import contract_create, contract_change, contract_list, contract_delete
 
 from .models import Contract, Client
-from accounts.admin import create_view, modification_view, list_view, delete_view
+from accounts.admin import create_view, modification_view, obtain_queryset, delete_view
 
 module_logger = logging.getLogger(__name__)
 file_handler = logging.FileHandler('debug2.log')
@@ -66,18 +66,23 @@ class ClientAdmin(ModelAdmin):
     logger = module_logger
 
     def add_view(self, request, form_url='', extra_context=None):
+        """A view used to create a Client."""
         return create_view(self, request, allowed_roles=["gestion", "sales"], form_url=form_url, extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
+        """A view used to edit a Client."""
         return modification_view(self, request, object_id, form_url='', extra_context=None)
 
     def get_queryset(self, request):
-        return list_view(self, request)
+        """Return the queryset asked by the request."""
+        return obtain_queryset(self, request)
 
     def delete_model(self, request, obj):
+        """Delete a Client."""
         delete_view(self, request, obj)
 
     def delete_queryset(self, request, queryset):
+        """Delete a queryset of Clients."""
         for model in queryset:
             self.delete_model(request, model)
 
@@ -98,18 +103,23 @@ class ContractAdmin(ModelAdmin):
     logger = module_logger
 
     def add_view(self, request, form_url='', extra_context=None):
+        """A view used to create a Contract."""
         return create_view(self, request, allowed_roles=["gestion", "sales"], form_url=form_url, extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
+        """A view used to edit a Contract."""
         return modification_view(self, request, object_id, form_url='', extra_context=None)
 
     def get_queryset(self, request):
-        return list_view(self, request)
+        """Return the queryset asked by the request."""
+        return obtain_queryset(self, request)
 
     def delete_model(self, request, obj):
+        """Delete a Contract."""
         delete_view(self, request, obj)
 
     def delete_queryset(self, request, queryset):
+        """Delete a queryset of Contracts."""
         for model in queryset:
             self.delete_model(request, model)
 

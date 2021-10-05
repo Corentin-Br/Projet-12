@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from api.urls import event_create, event_change, event_list, event_delete
 
 from .models import Event
-from accounts.admin import create_view, modification_view, list_view, delete_view
+from accounts.admin import create_view, modification_view, obtain_queryset, delete_view
 
 module_logger = logging.getLogger(__name__)
 file_handler = logging.FileHandler('debug2.log')
@@ -25,6 +25,7 @@ class EventCreationForm(forms.ModelForm):
         fields = ('client', 'support', 'contract', 'attendees', 'date', 'notes')
 
     def clean(self):
+        """Clean the data of the form and ensure that the client and the client in the contract are the same."""
         cleaned_data = super().clean()
         client = cleaned_data.get('client')
         contract_client = getattr(cleaned_data.get("contract"), "client")
@@ -42,6 +43,7 @@ class EventChangeForm(forms.ModelForm):
         fields = ('client', 'support', 'contract', 'attendees', 'date', 'notes')
 
     def clean(self):
+        """Clean the data of the form and ensure that the client and the client in the contract are the same."""
         cleaned_data = super().clean()
         client = cleaned_data.get('client')
         contract_client = getattr(cleaned_data.get("contract"), "client")
@@ -67,18 +69,23 @@ class EventAdmin(ModelAdmin):
     logger = module_logger
 
     def add_view(self, request, form_url='', extra_context=None):
+        """A view used to create an Event."""
         return create_view(self, request, allowed_roles=["gestion", "sales"], form_url=form_url, extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
+        """A view used to create an Event."""
         return modification_view(self, request, object_id, form_url='', extra_context=None)
 
     def get_queryset(self, request):
-        return list_view(self, request)
+        """Return the queryset asked by the request."""
+        return obtain_queryset(self, request)
 
     def delete_model(self, request, obj):
+        """Delete an Event."""
         delete_view(self, request, obj)
 
     def delete_queryset(self, request, queryset):
+        """Delete a queryset of Events."""
         for model in queryset:
             self.delete_model(request, model)
 

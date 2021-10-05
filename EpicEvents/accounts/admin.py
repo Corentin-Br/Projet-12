@@ -79,18 +79,23 @@ class UserAdmin(BaseUserAdmin):
     logger = module_logger
 
     def add_view(self, request, form_url='', extra_context=None):
+        """The view used to create new users."""
         return create_view(self, request, allowed_roles=["gestion"], form_url=form_url, extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
+        """The view used to modify users."""
         return modification_view(self, request, object_id, form_url='', extra_context=None)
 
     def get_queryset(self, request):
-        return list_view(self, request)
+        """Get the queryset asked by the request."""
+        return obtain_queryset(self, request)
 
     def delete_model(self, request, obj):
+        """Delete a model."""
         delete_view(self, request, obj)
 
     def delete_queryset(self, request, queryset):
+        """Delmete all models in a queryset"""
         for model in queryset:
             self.delete_model(request, model)
 
@@ -183,6 +188,9 @@ def get_context(admin_model, request, object_id, extra_context, status_code):
 
 
 def create_view(admin_model, request, allowed_roles, form_url='', extra_context=None, api_view=None, logs=None, logger=None):
+    """A generic creation view for the admin website. It can be used for all the models."""
+    # Those parameters can be given in the parameters, if they're not, they must be obtained from the admin model
+    # attributes.
     if api_view is None:
         api_view = admin_model.api_views["create"]
     if logs is None:
@@ -191,12 +199,15 @@ def create_view(admin_model, request, allowed_roles, form_url='', extra_context=
         logger = admin_model.logger
     model_name = admin_model.model.__name__.lower()
     if request.method == 'POST':
+        # A specific case for users, the passwords matching must be checked.
         if "password" in request.POST and "password2" in request.POST:
             if request.POST["password"] != request.POST["password2"]:
                 logger.warning(f"Password mismatch: failed to create user")
                 context, add, obj = get_context(admin_model, request, None, extra_context, status_code=200)
                 return admin_model.render_change_form(request, context, add=add, change=not add, obj=obj,
                                                       form_url=form_url)
+        # api_view must be a view from the API. It ensures that all access and modifications to the database are
+        # subject to validation by the API.
         response = api_view(request)
         if response.status_code == 201:
             return admin_model.response_add(request, admin_model.model.objects.last())
@@ -215,6 +226,8 @@ def create_view(admin_model, request, allowed_roles, form_url='', extra_context=
             return admin_model.render_change_form(request, context, add=add, change=not add, obj=obj,
                                                   form_url=form_url)
     else:
+        # Might become irrelevant once the Django permissions are properly set. Currently without it, it's possible
+        # to access the form page for creation.
         if request.user.role in allowed_roles:
             return super(type(admin_model), admin_model).add_view(request, form_url, extra_context)
         else:
@@ -223,6 +236,7 @@ def create_view(admin_model, request, allowed_roles, form_url='', extra_context=
 
 
 def modification_view(admin_model, request, object_id, api_view=None, logs=None, form_url='', extra_context=None, logger=None):
+    """A generic modification view for the admin website. It can be used for all the models."""
     if api_view is None:
         api_view = admin_model.api_views["change"]
     if logs is None:
@@ -231,6 +245,7 @@ def modification_view(admin_model, request, object_id, api_view=None, logs=None,
         logger = admin_model.logger
     model_name = admin_model.model.__name__.lower()
     if request.method == 'POST':
+        # api_view must be a view from the API that will ensure the modification is allowed.
         response = api_view(request, pk=object_id)
         if response.status_code == 200:
             return admin_model.response_change(request, admin_model.get_object(request, object_id))
@@ -252,15 +267,18 @@ def modification_view(admin_model, request, object_id, api_view=None, logs=None,
         return super(type(admin_model), admin_model).change_view(request, object_id, form_url, extra_context)
 
 
-def list_view(admin_model, request, api_view=None, logger=None):
+def obtain_queryset(admin_model, request, api_view=None, logger=None):
+    """A way to get a queryset that is validated by the API."""
     model_name = admin_model.model.__name__.lower()
     if api_view is None:
         api_view = admin_model.api_views["list"]
     if logger is None:
         logger = admin_model.logger
+    # api_view must be a view from the API that will ensure only results allowed by the APi are used.
     response = api_view(request)
     if response.status_code in (200, 204):
         qs = admin_model.model._default_manager.get_queryset()
+        # This is where we filter the original queryset to make sure it's the same as what is provided by the API.
         qs = qs.filter(id__in=[item["id"] for item in response.data])
         ordering = admin_model.get_ordering(request)
         if ordering:
@@ -280,6 +298,7 @@ def delete_view(admin_model, request, obj, api_view=None, logger=None):
         api_view = admin_model.api_views["delete"]
     if logger is None:
         logger = admin_model.logger
+    # api_view must be a view from the API that will ensure the deletion is allowed.
     response = api_view(request, pk=obj.pk)
     if response.status_code == 403:
         logger.warning(f"Unauthorized user {request.user} failed to delete {obj}")
