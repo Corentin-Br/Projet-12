@@ -8,7 +8,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from api.urls import event_create, event_change, event_list, event_delete
 
 from .models import Event
-from accounts.admin import get_context, create_view
+from accounts.admin import create_view, modification_view
 
 logger = logging.getLogger(__name__)
 file_handler = logging.FileHandler('debug2.log')
@@ -66,21 +66,23 @@ class EventAdmin(ModelAdmin):
                            extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        if request.method == 'POST':
-            response = event_change(request, pk=object_id)
-            if response.status_code == 200:
-                return self.response_change(request, self.get_object(request, object_id))
-            else:
-                if response.status_code != 403:
-                    logger.warning(f"Failed to edit event {object_id} with \n"
-                                   f"client: {request.POST['client']} \n"
-                                   f"contract: {request.POST['contract']}")
-                else:
-                    logger.warning(f"Unauthorized user {request.user} failed to edit an event")
-                context, add, obj = get_context(self, request, object_id, extra_context, status_code=response.status_code)
-                return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
-        else:
-            return super().change_view(request, object_id, form_url, extra_context)
+        return modification_view(self, request, object_id, logs=["client", "contract"],
+                                 api_view=event_change, form_url='', extra_context=None)
+        # if request.method == 'POST':
+        #     response = event_change(request, pk=object_id)
+        #     if response.status_code == 200:
+        #         return self.response_change(request, self.get_object(request, object_id))
+        #     else:
+        #         if response.status_code != 403:
+        #             logger.warning(f"Failed to edit event {object_id} with \n"
+        #                            f"client: {request.POST['client']} \n"
+        #                            f"contract: {request.POST['contract']}")
+        #         else:
+        #             logger.warning(f"Unauthorized user {request.user} failed to edit an event")
+        #         context, add, obj = get_context(self, request, object_id, extra_context, status_code=response.status_code)
+        #         return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
+        # else:
+        #     return super().change_view(request, object_id, form_url, extra_context)
 
     def get_queryset(self, request):
         response = event_list(request)

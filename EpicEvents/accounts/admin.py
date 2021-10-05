@@ -74,27 +74,29 @@ class UserAdmin(BaseUserAdmin):
 
     def add_view(self, request, form_url='', extra_context=None):
         return create_view(self, request, api_view=user_create, allowed_roles=["gestion"],
-                    logs=["email", "first_name", "last_name", "role"], form_url=form_url,
-                    extra_context=extra_context)
+                           logs=["email", "first_name", "last_name", "role"], form_url=form_url,
+                           extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        if request.method == 'POST':
-            response = user_change(request, pk=object_id)
-            if response.status_code == 200:
-                return self.response_change(request, self.get_object(request, object_id))
-            else:
-                if response.status_code != 403:
-                    logger.warning(f"Failed to edit user {object_id} with \n"
-                                   f"email: {request.POST['email']} \n"
-                                   f"first_name: {request.POST['first_name']}\n"
-                                   f"last_name: {request.POST['last_name']}\n"
-                                   f"role: {request.POST['role']}")
-                else:
-                    logger.warning(f"Unauthorized user {request.user} failed to edit an user")
-                context, add, obj = get_context(self, request, object_id, extra_context, status_code=response.status_code)
-                return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
-        else:
-            return super().change_view(request, object_id, form_url, extra_context)
+        return modification_view(self, request, object_id, logs=["email", "first_name", "last_name", "role"], api_view=user_change, form_url='', extra_context=None)
+        # if request.method == 'POST':
+        #     response = user_change(request, pk=object_id)
+        #     if response.status_code == 200:
+        #         return self.response_change(request, self.get_object(request, object_id))
+        #     else:
+        #         if response.status_code != 403:
+        #             logger.warning(f"Failed to edit user {object_id} with \n"
+        #                            f"email: {request.POST['email']} \n"
+        #                            f"first_name: {request.POST['first_name']}\n"
+        #                            f"last_name: {request.POST['last_name']}\n"
+        #                            f"role: {request.POST['role']}")
+        #         else:
+        #             logger.warning(f"Unauthorized user {request.user} failed to edit an user")
+        #         context, add, obj = get_context(self, request, object_id, extra_context,
+        #                                         status_code=response.status_code)
+        #         return self.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
+        # else:
+        #     return super().change_view(request, object_id, form_url, extra_context)
 
     def get_queryset(self, request):
         response = user_list(request)
@@ -131,9 +133,6 @@ class UserAdmin(BaseUserAdmin):
             elif response.status_code != 204:
                 logger.warning(f"{request.user} failed to delete {user}.\n"
                                f"The API sent: {response.data}")
-
-
-
 
 
 def get_context(admin_model, request, object_id, extra_context, status_code):
@@ -222,6 +221,7 @@ def get_context(admin_model, request, object_id, extra_context, status_code):
 
 admin.site.register(MyUser, UserAdmin)
 
+
 def create_view(admin_model, request, logs, api_view, allowed_roles, form_url='', extra_context=None):
     model_name = admin_model.model.__name__.lower()
     if request.method == 'POST':
@@ -229,7 +229,8 @@ def create_view(admin_model, request, logs, api_view, allowed_roles, form_url=''
             if request.POST["password"] != request.POST["password2"]:
                 logger.warning(f"Password mismatch: failed to create user")
                 context, add, obj = get_context(admin_model, request, None, extra_context, status_code=200)
-                return admin_model.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
+                return admin_model.render_change_form(request, context, add=add, change=not add, obj=obj,
+                                                      form_url=form_url)
         response = api_view(request)
         if response.status_code == 201:
             return admin_model.response_add(request, admin_model.model.objects.last())
@@ -243,11 +244,37 @@ def create_view(admin_model, request, logs, api_view, allowed_roles, form_url=''
                                f"The API sent {response.data}")
             else:
                 logger.warning(f"Unauthorized user {request.user} failed to create a {model_name}")
-            context, add, obj = get_context(admin_model, request, None, extra_context, status_code=response.status_code)
-            return admin_model.render_change_form(request, context, add=add, change=not add, obj=obj, form_url=form_url)
+            context, add, obj = get_context(admin_model, request, None, extra_context,
+                                            status_code=response.status_code)
+            return admin_model.render_change_form(request, context, add=add, change=not add, obj=obj,
+                                                  form_url=form_url)
     else:
         if request.user.role in allowed_roles:
             return super(type(admin_model), admin_model).add_view(request, form_url, extra_context)
         else:
             logger.warning(f"Unauthorized user {request.user} tried to acces {model_name} creation.")
             raise PermissionDenied
+
+
+def modification_view(admin_model, request, object_id, logs, api_view, form_url='', extra_context=None):
+    model_name = admin_model.model.__name__.lower()
+    if request.method == 'POST':
+        response = api_view(request, pk=object_id)
+        if response.status_code == 200:
+            return admin_model.response_change(request, admin_model.get_object(request, object_id))
+        else:
+            if response.status_code != 403:
+                data = "\n".join(
+                    [f"{information.replace('_', ' ')}:{request.POST[information]}"
+                     for information in logs])
+                logger.warning(f"Failed to edit {model_name} {object_id} with \n"
+                               f"{data}\n"
+                               f"The API sent {response.data}")
+            else:
+                logger.warning(f"Unauthorized user {request.user} failed to edit a {model_name}")
+            context, add, obj = get_context(admin_model, request, object_id, extra_context,
+                                            status_code=response.status_code)
+            return admin_model.render_change_form(request, context, add=add, change=not add, obj=obj,
+                                                  form_url=form_url)
+    else:
+        return super(type(admin_model), admin_model).change_view(request, object_id, form_url, extra_context)
