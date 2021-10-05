@@ -58,19 +58,23 @@ class ClientAdmin(ModelAdmin):
     search_fields = ('company_name', 'email')
     ordering = ('date_created',)
     filter_horizontal = ()
+    api_views = {"create": client_create,
+                 "change": client_change,
+                 "list": client_list,
+                 "delete": client_delete}
+    data_to_log = ["email", "first_name", "last_name", "sales_contact"]
 
     def add_view(self, request, form_url='', extra_context=None):
-        return create_view(self, request, api_view=client_create, allowed_roles=["gestion", "sales"], logs=["email", "first_name", "last_name", "sales_contact"], form_url=form_url, extra_context=extra_context)
+        return create_view(self, request, allowed_roles=["gestion", "sales"], form_url=form_url, extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        return modification_view(self, request, object_id, logs=["email", "first_name", "last_name", "sales_contact"],
-                                 api_view=client_change, form_url='', extra_context=None)
+        return modification_view(self, request, object_id, form_url='', extra_context=None)
 
     def get_queryset(self, request):
-        return list_view(self, request, client_list)
+        return list_view(self, request)
 
     def delete_model(self, request, obj):
-        delete_view(request, obj, client_delete)
+        delete_view(self, request, obj)
 
     def delete_queryset(self, request, queryset):
         for model in queryset:
@@ -85,19 +89,23 @@ class ContractAdmin(ModelAdmin):
     search_fields = ('date_created',)
     ordering = ('date_created',)
     filter_horizontal = ()
+    api_views = {"create": contract_create,
+                 "change": contract_change,
+                 "list": contract_list,
+                 "delete": contract_delete}
+    data_to_log = ["client", "sales_contact"]
 
     def add_view(self, request, form_url='', extra_context=None):
-        return create_view(self, request, api_view=contract_create, allowed_roles=["gestion", "sales"], logs=["client", "sales_contact"], form_url=form_url, extra_context=extra_context)
+        return create_view(self, request, allowed_roles=["gestion", "sales"], form_url=form_url, extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        return modification_view(self, request, object_id, logs=["client", "sales_contact"],
-                                 api_view=contract_change, form_url='', extra_context=None)
+        return modification_view(self, request, object_id, form_url='', extra_context=None)
 
     def get_queryset(self, request):
-        return list_view(self, request, contract_list)
+        return list_view(self, request)
 
     def delete_model(self, request, obj):
-        delete_view(request, obj, contract_delete)
+        delete_view(self, request, obj)
 
     def delete_queryset(self, request, queryset):
         for model in queryset:

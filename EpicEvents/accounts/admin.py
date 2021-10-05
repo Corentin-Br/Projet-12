@@ -71,20 +71,23 @@ class UserAdmin(BaseUserAdmin):
     search_fields = ('email', 'role')
     ordering = ('email',)
     filter_horizontal = ()
+    api_views = {"create": user_create,
+                 "change": user_change,
+                 "list": user_list,
+                 "delete": user_delete}
+    data_to_log = ["email", "first_name", "last_name", "role"]
 
     def add_view(self, request, form_url='', extra_context=None):
-        return create_view(self, request, api_view=user_create, allowed_roles=["gestion"],
-                           logs=["email", "first_name", "last_name", "role"], form_url=form_url,
-                           extra_context=extra_context)
+        return create_view(self, request, allowed_roles=["gestion"], form_url=form_url, extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        return modification_view(self, request, object_id, logs=["email", "first_name", "last_name", "role"], api_view=user_change, form_url='', extra_context=None)
+        return modification_view(self, request, object_id, form_url='', extra_context=None)
 
     def get_queryset(self, request):
-        return list_view(self, request, user_list)
+        return list_view(self, request)
 
     def delete_model(self, request, obj):
-        delete_view(request, obj, user_delete)
+        delete_view(self, request, obj)
 
     def delete_queryset(self, request, queryset):
         for model in queryset:
@@ -178,7 +181,11 @@ def get_context(admin_model, request, object_id, extra_context, status_code):
     return context, add, obj
 
 
-def create_view(admin_model, request, logs, api_view, allowed_roles, form_url='', extra_context=None):
+def create_view(admin_model, request, allowed_roles, form_url='', extra_context=None, api_view=None, logs=None):
+    if api_view is None:
+        api_view = admin_model.api_views["create"]
+    if logs is None:
+        logs = admin_model.data_to_log
     model_name = admin_model.model.__name__.lower()
     if request.method == 'POST':
         if "password" in request.POST and "password2" in request.POST:
@@ -212,7 +219,11 @@ def create_view(admin_model, request, logs, api_view, allowed_roles, form_url=''
             raise PermissionDenied
 
 
-def modification_view(admin_model, request, object_id, logs, api_view, form_url='', extra_context=None):
+def modification_view(admin_model, request, object_id, api_view=None, logs=None, form_url='', extra_context=None):
+    if api_view is None:
+        api_view = admin_model.api_views["change"]
+    if logs is None:
+        logs = admin_model.data_to_log
     model_name = admin_model.model.__name__.lower()
     if request.method == 'POST':
         response = api_view(request, pk=object_id)
@@ -236,8 +247,10 @@ def modification_view(admin_model, request, object_id, logs, api_view, form_url=
         return super(type(admin_model), admin_model).change_view(request, object_id, form_url, extra_context)
 
 
-def list_view(admin_model, request, api_view):
+def list_view(admin_model, request, api_view=None):
     model_name = admin_model.model.__name__.lower()
+    if api_view is None:
+        api_view = admin_model.api_views["list"]
     response = api_view(request)
     if response.status_code in (200, 204):
         qs = admin_model.model._default_manager.get_queryset()
@@ -255,7 +268,9 @@ def list_view(admin_model, request, api_view):
     return qs
 
 
-def delete_view(request, obj, api_view):
+def delete_view(admin_model, request, obj, api_view=None):
+    if api_view is None:
+        api_view = admin_model.api_views["delete"]
     response = api_view(request, pk=obj.pk)
     if response.status_code == 403:
         logger.warning(f"Unauthorized user {request.user} failed to delete {obj}")

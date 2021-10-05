@@ -59,21 +59,23 @@ class EventAdmin(ModelAdmin):
     search_fields = ('date_created',)
     ordering = ('date_created',)
     filter_horizontal = ()
+    api_views = {"create": event_create,
+                 "change": event_change,
+                 "list": event_list,
+                 "delete": event_delete}
+    data_to_log = ["client", "contract"]
 
     def add_view(self, request, form_url='', extra_context=None):
-        return create_view(self, request, api_view=event_create, allowed_roles=["gestion", "sales"],
-                           logs=["client", "contract"], form_url=form_url,
-                           extra_context=extra_context)
+        return create_view(self, request, allowed_roles=["gestion", "sales"], form_url=form_url, extra_context=extra_context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        return modification_view(self, request, object_id, logs=["client", "contract"],
-                                 api_view=event_change, form_url='', extra_context=None)
+        return modification_view(self, request, object_id, form_url='', extra_context=None)
 
     def get_queryset(self, request):
-        return list_view(self, request, event_list)
+        return list_view(self, request)
 
     def delete_model(self, request, obj):
-        delete_view(request, obj, event_delete)
+        delete_view(self, request, obj)
 
     def delete_queryset(self, request, queryset):
         for model in queryset:
