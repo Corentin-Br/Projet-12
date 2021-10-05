@@ -3,6 +3,8 @@ import datetime
 from django.test import TestCase
 from unittest.mock import patch
 
+from django.utils.timezone import make_aware
+
 import clients.admin
 from accounts.models import MyUser
 from .models import Client, Contract
@@ -63,14 +65,14 @@ class ClientsTest(TestCase):
         cls.client2.save()
         cls.client3.save()
         cls.contract1 = Contract(sales_contact=cls.sales_user_1, client=cls.client2, status=False, amount=320.54,
-                                 payment_due=datetime.datetime.now())
+                                 payment_due=make_aware(datetime.datetime.now()))
         cls.contract2 = Contract(sales_contact=cls.sales_user_2, client=cls.client2, status=False, amount=320.54,
-                                 payment_due=datetime.datetime.now())
+                                 payment_due=make_aware(datetime.datetime.now()))
         cls.additional_contract_data = {"sales_contact": cls.sales_user_1.pk,
                                         "client": cls.client2.pk,
                                         "status": False,
                                         "amount": 320.54,
-                                        "payment_due": datetime.datetime.now()}
+                                        "payment_due": make_aware(datetime.datetime.now())}
         cls.contract1.save()
         cls.contract2.save()
 
@@ -205,7 +207,7 @@ class ClientsTest(TestCase):
                                  "client": self.client2.pk,
                                   "status": False,
                                   "amount": 100,
-                                  "payment_due": datetime.datetime.now()})
+                                  "payment_due": make_aware(datetime.datetime.now())})
         assert resp.status_code == 302
         assert Contract.objects.first().amount == 100
 
@@ -216,7 +218,7 @@ class ClientsTest(TestCase):
                                  "client": self.client2.pk,
                                  "status": False,
                                  "amount": 100,
-                                 "payment_due": datetime.datetime.now()})
+                                 "payment_due": make_aware(datetime.datetime.now())})
         assert resp.status_code == 302
         assert Contract.objects.first().amount == 100
 
@@ -227,7 +229,7 @@ class ClientsTest(TestCase):
                                  "client": self.client2.pk,
                                  "status": False,
                                  "amount": 100,
-                                 "payment_due": datetime.datetime.now()})
+                                 "payment_due": make_aware(datetime.datetime.now())})
         assert resp.status_code == 403
         assert Contract.objects.get(pk=self.contract2.pk).amount == 320.54
 
@@ -238,7 +240,7 @@ class ClientsTest(TestCase):
                                  "client": self.client2.pk,
                                  "status": False,
                                  "amount": 100,
-                                 "payment_due": datetime.datetime.now()})
+                                 "payment_due": make_aware(datetime.datetime.now())})
         assert resp.status_code == 403
         assert Contract.objects.get(pk=self.contract2.pk).amount == 320.54
 
@@ -248,7 +250,7 @@ class ClientsTest(TestCase):
                                  "client": self.client2.pk,
                                  "status": False,
                                  "amount": 100,
-                                 "payment_due": datetime.datetime.now()})
+                                 "payment_due": make_aware(datetime.datetime.now())})
         assert resp.status_code == 302
         assert resp.url == f"/admin/login/?next={resp.request['PATH_INFO']}"
         assert Contract.objects.get(pk=self.contract2.pk).amount == 320.54

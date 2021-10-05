@@ -1,5 +1,6 @@
 import datetime
 
+from django.utils.timezone import make_aware
 from rest_framework import status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -18,12 +19,14 @@ class UserAPIViewSet(ModelViewSet):
     serializer_class = MyUserSerializer
 
     def perform_update(self, serializer):
+        """Add the password to the serializer data before saving it, if there is one."""
         if "password" in serializer.validated_data:
             serializer.save(password=serializer.validated_data["password"])
         else:
             serializer.save()
 
     def get_queryset(self):
+        """Filter the queryset depending on given parameters."""
         queryset = super().get_queryset()
         email = self.request.query_params.get('email')
         role = self.request.query_params.get('role')
@@ -40,6 +43,7 @@ class ClientAPIViewSet(ModelViewSet):
     serializer_class = ClientSerializer
 
     def get_queryset(self):
+        """Filter the queryset depending on given parameters."""
         queryset = super().get_queryset()
         email = self.request.query_params.get('email')
         company_name = self.request.query_params.get('company')
@@ -59,9 +63,10 @@ class EventAPIViewSet(ModelViewSet):
     serializer_class = EventSerializer
 
     def create(self, request, *args, **kwargs):
+        """Create an event, turning the date and time into a datetime object."""
         data = request.data.copy()
         if "date_0" in request.data and "date_1" in request.data:
-            data["date"] = f"{request.data['date_0']}T{request.data['date_1']}.0Z"
+            data["date"] = merge_date_time(request.data["date_0"], request.data["date_1"])
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
@@ -69,23 +74,23 @@ class EventAPIViewSet(ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def update(self, request, *args, **kwargs):
+        """Update an event, turning the date and time into a datetime object."""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         data = request.data.copy()
         if "date_0" in request.data and "date_1" in request.data:
-            data["date"] = f"{request.data['date_0']}T{request.data['date_1']}.0Z"
+            data["date"] = merge_date_time(request.data["date_0"], request.data["date_1"])
         serializer = self.get_serializer(instance, data=data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
         if getattr(instance, '_prefetched_objects_cache', None):
-            # If 'prefetch_related' has been applied to a queryset, we need to
-            # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
 
         return Response(serializer.data)
 
     def get_queryset(self):
+        """Filter the queryset depending on given parameters."""
         queryset = super().get_queryset()
         client = self.request.query_params.get('client')
         support = self.request.query_params.get('support')
@@ -105,9 +110,10 @@ class ContractAPIViewSet(ModelViewSet):
     serializer_class = ContractSerializer
 
     def create(self, request, *args, **kwargs):
+        """Create a contract, turning the date and time into a datetime object."""
         data = request.data.copy()
         if "payment_due_0" in request.data and "payment_due_1" in request.data:
-            data["payment_due"] = f"{request.data['payment_due_0']}T{request.data['payment_due_1']}.0Z"
+            data["payment_due"] = merge_date_time(request.data["payment_due_0"], request.data["payment_due_1"])
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
@@ -115,23 +121,23 @@ class ContractAPIViewSet(ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def update(self, request, *args, **kwargs):
+        """Update a contract, turning the date and time into a datetime object."""
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         data = request.data.copy()
         if "payment_due_0" in request.data and "payment_due_1" in request.data:
-            data["payment_due"] = f"{request.data['payment_due_0']}T{request.data['payment_due_1']}.0Z"
+            data["payment_due"] = merge_date_time(request.data["payment_due_0"], request.data["payment_due_1"])
         serializer = self.get_serializer(instance, data=data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
         if getattr(instance, '_prefetched_objects_cache', None):
-            # If 'prefetch_related' has been applied to a queryset, we need to
-            # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
 
         return Response(serializer.data)
 
     def get_queryset(self):
+        """Filter the queryset depending on given parameters."""
         queryset = super().get_queryset()
         due = self.request.query_params.get('due')
         client = self.request.query_params.get('client')
@@ -143,3 +149,11 @@ class ContractAPIViewSet(ModelViewSet):
         if client is not None:
             queryset = queryset.filter(client__company_namel=client)
         return queryset
+
+
+def merge_date_time(date, time):
+    """Merge a date string and time string in a specific format into a single aware datetime object."""
+    date = datetime.datetime.strptime(date, "%Y-%m-%d")
+    time = datetime.datetime.strptime(time, "%H:%M:%S")
+    time = datetime.time(hour=time.hour, minute=time.minute, second=time.second)
+    return make_aware(datetime.datetime.combine(date, time))

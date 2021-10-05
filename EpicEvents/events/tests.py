@@ -3,6 +3,8 @@ import datetime
 from django.test import TestCase
 from unittest.mock import patch
 
+from django.utils.timezone import make_aware
+
 import events.admin
 from accounts.models import MyUser
 from clients.models import Client, Contract
@@ -57,25 +59,25 @@ class EventsTest(TestCase):
                              sales_contact=cls.sales_user_1)
         cls.client1.save()
         cls.client2.save()
-        cls.contract1 = Contract(sales_contact=cls.sales_user_1, client=cls.client2, status=False, amount=320.54, payment_due=datetime.datetime.now())
-        cls.contract2 = Contract(sales_contact=cls.sales_user_1, client=cls.client2, status=False, amount=320.54, payment_due=datetime.datetime.now())
-        cls.contract3 = Contract(sales_contact=cls.sales_user_1, client=cls.client2, status=False, amount=320.54, payment_due=datetime.datetime.now())
+        cls.contract1 = Contract(sales_contact=cls.sales_user_1, client=cls.client2, status=False, amount=320.54, payment_due=make_aware(datetime.datetime.now()))
+        cls.contract2 = Contract(sales_contact=cls.sales_user_1, client=cls.client2, status=False, amount=320.54, payment_due=make_aware(datetime.datetime.now()))
+        cls.contract3 = Contract(sales_contact=cls.sales_user_1, client=cls.client2, status=False, amount=320.54, payment_due=make_aware(datetime.datetime.now()))
         cls.contract1.save()
         cls.contract2.save()
         cls.contract3.save()
-        cls.event1 = Event(client=cls.client2, support=cls.support_user1, contract=cls.contract1, attendees=10, date=datetime.datetime.now(), notes="")
-        cls.event2 = Event(client=cls.client2, support=cls.support_user2, contract=cls.contract2, attendees=10, date=datetime.datetime.now(), notes="")
+        cls.event1 = Event(client=cls.client2, support=cls.support_user1, contract=cls.contract1, attendees=10, date=make_aware(datetime.datetime.now()), notes="")
+        cls.event2 = Event(client=cls.client2, support=cls.support_user2, contract=cls.contract2, attendees=10, date=make_aware(datetime.datetime.now()), notes="")
         cls.event_additional_data_1 = {"client": cls.client1.pk,
                                        "support": cls.support_user1.pk,
                                        "contract": cls.contract3.pk,
                                        "attendees": 10,
-                                       "date": datetime.datetime.now(),
+                                       "date": make_aware(datetime.datetime.now()),
                                        "notes": ""}
         cls.event_additional_data_2 = {"client": cls.client2.pk,
                                        "support": cls.support_user1.pk,
                                        "contract": cls.contract3.pk,
                                        "attendees": 10,
-                                       "date": datetime.datetime.now(),
+                                       "date": make_aware(datetime.datetime.now()),
                                        "notes": ""}
         cls.event1.save()
         cls.event2.save()
@@ -101,7 +103,7 @@ class EventsTest(TestCase):
                                  "support": self.support_user1.pk,
                                  "contract": self.contract1.pk,
                                  "attendees": 10,
-                                 "date": datetime.datetime.now(),
+                                 "date": make_aware(datetime.datetime.now()),
                                  "notes": "note"})
         assert resp.status_code == 302
         assert resp.url == f"/admin/login/?next={resp.request['PATH_INFO']}"
@@ -146,7 +148,7 @@ class EventsTest(TestCase):
                                  "support": self.support_user1.pk,
                                  "contract": self.contract1.pk,
                                  "attendees": 10,
-                                 "date": datetime.datetime.now(),
+                                 "date": make_aware(datetime.datetime.now()),
                                  "notes": "note"})
         assert resp.status_code == 302
         assert Event.objects.get(pk=self.event1.pk).notes == "note"
@@ -158,7 +160,7 @@ class EventsTest(TestCase):
                                  "support": self.support_user1.pk,
                                  "contract": self.contract1.pk,
                                  "attendees": 10,
-                                 "date": datetime.datetime.now(),
+                                 "date": make_aware(datetime.datetime.now()),
                                  "notes": "note"})
         assert resp.status_code == 200
         assert Event.objects.get(pk=self.event1.pk).notes == ""
@@ -170,7 +172,7 @@ class EventsTest(TestCase):
                                  "support": self.support_user1.pk,
                                  "contract": self.contract1.pk,
                                  "attendees": 10,
-                                 "date": datetime.datetime.now(),
+                                 "date": make_aware(datetime.datetime.now()),
                                  "notes": "note"})
         assert resp.status_code == 302
         assert Event.objects.get(pk=self.event1.pk).notes == "note"
@@ -182,7 +184,7 @@ class EventsTest(TestCase):
                                  "support": self.support_user1.pk,
                                  "contract": self.contract1.pk,
                                  "attendees": 10,
-                                 "date": datetime.datetime.now(),
+                                 "date": make_aware(datetime.datetime.now()),
                                  "notes": "note"})
         assert resp.status_code == 403
         assert Event.objects.get(pk=self.event2.pk).notes == ""
@@ -194,7 +196,7 @@ class EventsTest(TestCase):
                                  "support": self.support_user1.pk,
                                  "contract": self.contract1.pk,
                                  "attendees": 10,
-                                 "date": datetime.datetime.now(),
+                                 "date": make_aware(datetime.datetime.now()),
                                  "notes": "note"})
         assert resp.status_code == 403
         assert Event.objects.get(pk=self.event2.pk).notes == ""
