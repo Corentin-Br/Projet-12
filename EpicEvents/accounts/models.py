@@ -70,16 +70,13 @@ class MyUser(AbstractBaseUser):
         return self.email
 
     def has_perm(self, perm, obj=None):
-        "Does the user have a specific permission?"
-        # Simplest possible answer: Yes, always
-        return True
+        """Does the user have a specific permission?"""
+        return perm(self, obj)
 
-    def has_module_perms(self, app_label):
+    def has_module_perms(self, _app_label):
         """Does the user have permissions to view the app `app_label`?"""
-        if app_label in ("api", "accounts"):
-            return self.role == "gestion"
-        elif app_label in ("clients", "events"):
-            return self.role in ("gestion", "sales", "support")
+        # The actual permissions are delegated to the ModelAdmin.
+        return True
 
     @property
     def is_staff(self):
