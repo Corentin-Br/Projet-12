@@ -17,7 +17,7 @@ from .models import MyUser
 from api.urls import user_change, user_create, user_list, user_delete
 
 module_logger = logging.getLogger(__name__)
-file_handler = logging.FileHandler('debug2.log')
+file_handler = logging.FileHandler('debug.log')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 module_logger.addHandler(file_handler)

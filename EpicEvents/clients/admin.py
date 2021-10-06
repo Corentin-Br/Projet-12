@@ -12,7 +12,7 @@ from .models import Contract, Client
 from accounts.admin import create_view, modification_view, obtain_queryset, delete_view
 
 module_logger = logging.getLogger(__name__)
-file_handler = logging.FileHandler('debug2.log')
+file_handler = logging.FileHandler('debug.log')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 module_logger.addHandler(file_handler)
