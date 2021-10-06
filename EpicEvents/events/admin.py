@@ -89,3 +89,25 @@ class EventAdmin(ModelAdmin):
         for model in queryset:
             self.delete_model(request, model)
 
+    def has_add_permission(self, request):
+        if request.user.role in ('gestion', 'sales'):
+            return True
+        return False
+
+    def has_view_permission(self, request, obj=None):
+        if request.user.role in ('gestion', 'sales', 'support'):
+            return True
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        if request.user.role == 'gestion' or request.user.role == "support" and (obj is None or
+                                                                                 obj.support == request.user):
+            return True
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        if request.user.role == 'gestion' or request.user.role == "support" and (obj is None or
+                                                                                 obj.support == request.user):
+            return True
+        return False
+

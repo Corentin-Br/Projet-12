@@ -86,6 +86,31 @@ class ClientAdmin(ModelAdmin):
         for model in queryset:
             self.delete_model(request, model)
 
+    def has_add_permission(self, request):
+        if request.user.role in ('gestion', 'sales'):
+            return True
+        return False
+
+    def has_view_permission(self, request, obj=None):
+        if request.user.role in ('gestion', 'sales', 'support'):
+            return True
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        if request.user.role == 'gestion' or request.user.role == "sales" and (obj is None or
+                                                                               obj.sales_contact == request.user or
+                                                                               obj.sales_contact is not None):
+            return True
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        if request.user.role == 'gestion' or request.user.role == "sales" and (obj is None or
+                                                                               obj.sales_contact == request.user or
+                                                                               obj.sales_contact is not None):
+            return True
+        return False
+
+
 
 @admin.register(Contract)
 class ContractAdmin(ModelAdmin):
@@ -122,5 +147,30 @@ class ContractAdmin(ModelAdmin):
         """Delete a queryset of Contracts."""
         for model in queryset:
             self.delete_model(request, model)
+
+    def has_add_permission(self, request):
+        if request.user.role in ('gestion', 'sales'):
+            return True
+        return False
+
+    def has_view_permission(self, request, obj=None):
+        if request.user.role in ('gestion', 'sales', 'support'):
+            return True
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        if request.user.role == 'gestion' or request.user.role == "sales" and (obj is None or
+                                                                               obj.sales_contact == request.user or
+                                                                               obj.sales_contact is not None):
+            return True
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        if request.user.role == 'gestion' or request.user.role == "sales" and (obj is None or
+                                                                               obj.sales_contact == request.user or
+                                                                               obj.sales_contact is not None):
+            return True
+        return False
+
 
 

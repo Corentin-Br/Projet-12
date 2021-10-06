@@ -8,6 +8,7 @@ from django.contrib.admin.options import TO_FIELD_VAR, IS_POPUP_VAR
 from django.contrib.admin.utils import unquote, flatten_fieldsets
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.core.exceptions import PermissionDenied
 
@@ -99,8 +100,30 @@ class UserAdmin(BaseUserAdmin):
         for model in queryset:
             self.delete_model(request, model)
 
+    def has_add_permission(self, request):
+        if request.user.role == 'gestion':
+            return True
+        return False
+
+    def has_view_permission(self, request, obj=None):
+        if request.user.role == 'gestion':
+            return True
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        if request.user.role == 'gestion':
+            return True
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        if request.user.role == 'gestion':
+            return True
+        return False
+
+
 
 admin.site.register(MyUser, UserAdmin)
+admin.site.unregister(Group)
 
 
 def get_context(admin_model, request, object_id, extra_context, status_code):
@@ -228,11 +251,7 @@ def create_view(admin_model, request, allowed_roles, form_url='', extra_context=
     else:
         # Might become irrelevant once the Django permissions are properly set. Currently without it, it's possible
         # to access the form page for creation.
-        if request.user.role in allowed_roles:
-            return super(type(admin_model), admin_model).add_view(request, form_url, extra_context)
-        else:
-            logger.warning(f"Unauthorized user {request.user} tried to acces {model_name} creation.")
-            raise PermissionDenied
+        return super(type(admin_model), admin_model).add_view(request, form_url, extra_context)
 
 
 def modification_view(admin_model, request, object_id, api_view=None, logs=None, form_url='', extra_context=None, logger=None):
